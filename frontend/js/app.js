@@ -452,6 +452,45 @@ function setupEventListeners() {
     }
   });
 
+  // ==================== PODCAST SPEED CONTROLS ====================
+  const podcastControls = document.getElementById('podcastControls');
+  const speedBtns = document.querySelectorAll('.btn-speed[data-speed]');
+  const stopBtn = document.getElementById('stopPodcast');
+
+  function showPodcastControls() {
+    if (podcastControls) podcastControls.style.display = 'flex';
+  }
+  function hidePodcastControls() {
+    if (podcastControls) podcastControls.style.display = 'none';
+  }
+
+  speedBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const speed = parseFloat(btn.dataset.speed);
+      podcastPlayer.playbackRate = speed;
+      speedBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      podcastPlayer.pause();
+      podcastPlayer.currentTime = 0;
+      podcastBtn.classList.remove('playing');
+      podcastBtn.querySelector('span').textContent = 'Daily Podcast';
+      hidePodcastControls();
+    });
+  }
+
+  // Show controls when playing, hide when ended
+  podcastPlayer.addEventListener('play', showPodcastControls);
+  podcastPlayer.addEventListener('ended', () => {
+    hidePodcastControls();
+    speedBtns.forEach(b => b.classList.remove('active'));
+    speedBtns[0]?.classList.add('active');
+  });
+
   // ==================== STRATEGY REPORT ====================
   const reportModal = document.getElementById('reportModal');
   // Report dropdown toggle
@@ -685,33 +724,62 @@ function renderMarkdown(md) {
   
   function buildTable(rows) {
     if (rows.length === 0) return '';
-    const colCount = rows[0].split('|').filter(c => c.trim() !== '').length;
-    let html = '<div class="report-table-wrap"><table>';
-    rows.forEach((row, idx) => {
+    const headers = rows[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
+    const colCount = headers.length;
+    const dataRows = rows.slice(1);
+    
+    function fmt(text) {
+      return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+    }
+
+    // 2-column key-value → card list
+    if (colCount === 2 && dataRows.length > 0) {
+      let html = '<div class="report-card">';
+      dataRows.forEach(row => {
+        const cells = row.split('|').filter(c => c.trim() !== '');
+        const key = fmt((cells[0] || '').trim());
+        const val = fmt((cells[1] || '').trim());
+        html += `<div class="report-kv"><span class="report-kv-key">${key}</span><span class="report-kv-val">${val}</span></div>`;
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // 1-column → callout card
+    if (colCount === 1) {
+      let html = '<div class="report-callout">';
+      if (headers[0]) html += `<div class="report-callout-title">${fmt(headers[0])}</div>`;
+      dataRows.forEach(row => {
+        const cells = row.split('|').filter(c => c.trim() !== '');
+        const val = fmt((cells[0] || '').trim());
+        if (val) html += `<div class="report-callout-body">${val}</div>`;
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // Multi-column → data cards (no table borders)
+    let html = '<div class="report-data-grid">';
+    // Header as labels reference
+    dataRows.forEach((row, rIdx) => {
       const cells = row.split('|').filter(c => c.trim() !== '');
-      // Pad cells if row has fewer columns
       while (cells.length < colCount) cells.push('');
-      const tag = idx === 0 ? 'th' : 'td';
-      if (idx === 0) html += '<thead>';
-      if (idx === 1) html += '</thead><tbody>';
-      html += '<tr>' + cells.map(c => {
-        let content = c.trim();
-        // Apply inline bold within cells
-        content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Apply inline italic within cells
-        content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        return `<${tag}>${content}</${tag}>`;
-      }).join('') + '</tr>';
+      html += `<div class="report-data-row">`;
+      cells.forEach((cell, cIdx) => {
+        const label = headers[cIdx] || '';
+        const val = fmt(cell.trim());
+        html += `<div class="report-data-cell"><span class="report-data-label">${fmt(label)}</span><span class="report-data-value">${val}</span></div>`;
+      });
+      html += '</div>';
     });
-    if (rows.length > 1) html += '</tbody>';
-    html += '</table></div>';
+    html += '</div>';
     return html;
   }
   
   // Process non-table lines only for markdown formatting
   let html = processed.map(line => {
     // Skip lines that are already HTML (tables)
-    if (line.startsWith('<div class="report-table-wrap">')) return line;
+    if (line.startsWith('<div class="report-')) return line;
     
     // Headings
     line = line.replace(/^### (.*$)/gim, '<h3 class="report-h3">$1</h3>');
@@ -738,10 +806,10 @@ function renderMarkdown(md) {
   // Paragraphs - but protect table blocks
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br>');
-  // Clean up: remove <br> and <p> wrapping around tables
-  html = html.replace(/<br><div class="report-table-wrap">/g, '<div class="report-table-wrap">');
+  // Clean up: remove <br> and <p> wrapping around card components
+  html = html.replace(/<br><div class="report-/g, '<div class="report-');
   html = html.replace(/<\/div><br>/g, '</div>');
-  html = html.replace(/<p><div class="report-table-wrap">/g, '<div class="report-table-wrap">');
+  html = html.replace(/<p><div class="report-/g, '<div class="report-');
   html = html.replace(/<\/div><\/p>/g, '</div>');
   // Clean up empty paragraphs
   html = html.replace(/<p><\/p>/g, '');
