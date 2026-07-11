@@ -113,7 +113,7 @@ app.post('/api/news/ai/strategy', async (req, res) => {
 app.post('/api/news/ai/chat', async (req, res) => {
   try {
     const { query, context } = req.body;
-    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your MarketFeed assistant. Ask me about any of the 40+ companies I track, market trends, or engagement opportunities.' });
+    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your AlphaFeed assistant. Ask me about any of the 40+ companies I track, market trends, or engagement opportunities.' });
 
     const q = query.toLowerCase();
     const news = context || [];
@@ -366,7 +366,7 @@ app.get('/api/unsubscribe', async (req, res) => {
   if (!token) return res.status(400).json({ success: false, error: 'Token required' });
   const success = await unsubscribe(token);
   if (success) {
-    res.send('<html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2>Unsubscribed</h2><p>You have been successfully unsubscribed from MarketFeed digests.</p></body></html>');
+    res.send('<html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2>Unsubscribed</h2><p>You have been successfully unsubscribed from AlphaFeed digests.</p></body></html>');
   } else {
     res.status(404).send('<html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2>Not Found</h2><p>Subscription not found or already unsubscribed.</p></body></html>');
   }
@@ -398,7 +398,7 @@ app.get('/api/ipo', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'MarketFeed is running', uptime: Math.round(process.uptime()) });
+  res.json({ success: true, message: 'AlphaFeed is running', uptime: Math.round(process.uptime()) });
 });
 
 // SPA fallback
@@ -415,7 +415,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[MarketFeed] Running on port ${PORT}`);
+  console.log(`[AlphaFeed] Running on port ${PORT}`);
 
   // DB maintenance on startup
   const { cleanupOldArticles } = require('./models/db');

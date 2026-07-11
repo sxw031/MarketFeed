@@ -102,7 +102,7 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
 <body>
   <div class="container">
     <div class="header">
-      <h1>MarketFeed ${freqLabel} Digest</h1>
+      <h1>AlphaFeed ${freqLabel} Digest</h1>
       <p>${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
     </div>
 
@@ -135,8 +135,8 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
     </div>
 
     <div class="footer">
-      <p>You're receiving this because you subscribed to MarketFeed ${freqLabel} Digest.</p>
-      <p><a href="{{UNSUBSCRIBE_URL}}?token=${unsubscribeToken}">Unsubscribe</a> · <a href="{{APP_URL}}">Open MarketFeed</a></p>
+      <p>You're receiving this because you subscribed to AlphaFeed ${freqLabel} Digest.</p>
+      <p><a href="{{UNSUBSCRIBE_URL}}?token=${unsubscribeToken}">Unsubscribe</a> · <a href="{{APP_URL}}">Open AlphaFeed</a></p>
     </div>
   </div>
 </body>
@@ -175,7 +175,7 @@ function generateStrategySuggestions(news) {
   }
 
   // Always add a general action
-  suggestions.push(`Review the full digest on MarketFeed for deeper analysis and strategy reports.`);
+  suggestions.push(`Review the full digest on AlphaFeed for deeper analysis and strategy reports.`);
 
   return suggestions.slice(0, 4);
 }

@@ -12,48 +12,48 @@ let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
 
 // Logo URLs - reliable sources for each company
 const LOGO_MAP = {
-  'HSBC': 'https://logo.clearbit.com/hsbc.com',
-  'DBS': 'https://logo.clearbit.com/dbs.com',
-  'Bank of China': '/img/bankofchina.png',
-  'Citigroup': 'https://logo.clearbit.com/citigroup.com',
-  'Standard Chartered': 'https://logo.clearbit.com/sc.com',
-  'JPMorgan Chase': 'https://logo.clearbit.com/jpmorganchase.com',
-  'Aeon Credit': 'https://logo.clearbit.com/aeoncredit.com.my',
-  'Binance': 'https://logo.clearbit.com/binance.com',
-  'Coinbase': 'https://logo.clearbit.com/coinbase.com',
-  'Stripe': 'https://logo.clearbit.com/stripe.com',
-  'Apple': 'https://logo.clearbit.com/apple.com',
-  'Alphabet (Google)': 'https://logo.clearbit.com/google.com',
-  'Microsoft': 'https://logo.clearbit.com/microsoft.com',
-  'Amazon': 'https://logo.clearbit.com/amazon.com',
-  'Meta': 'https://logo.clearbit.com/meta.com',
-  'Nvidia': 'https://logo.clearbit.com/nvidia.com',
-  'Samsung': 'https://logo.clearbit.com/samsung.com',
-  'TSMC': 'https://logo.clearbit.com/tsmc.com',
-  'OpenAI': 'https://logo.clearbit.com/openai.com',
-  'Anthropic': 'https://logo.clearbit.com/anthropic.com',
-  'Databricks': 'https://logo.clearbit.com/databricks.com',
-  'ByteDance': '/img/bytedance.png',
-  'Alibaba': 'https://logo.clearbit.com/alibaba.com',
-  'Temu': 'https://logo.clearbit.com/temu.com',
-  'Shein': 'https://logo.clearbit.com/shein.com',
-  'ShopBack': 'https://logo.clearbit.com/shopback.com',
-  'Walmart': 'https://logo.clearbit.com/walmart.com',
-  'Grab': 'https://logo.clearbit.com/grab.com',
-  'Didi': 'https://logo.clearbit.com/didiglobal.com',
-  'Gojek': 'https://logo.clearbit.com/gojek.com',
-  'Cathay Pacific': 'https://logo.clearbit.com/cathaypacific.com',
-  'Ctrip': 'https://logo.clearbit.com/trip.com',
-  'Vodafone': 'https://logo.clearbit.com/vodafone.com',
-  'Singtel': 'https://logo.clearbit.com/singtel.com',
-  'StarHub': 'https://logo.clearbit.com/starhub.com',
-  'Netflix': 'https://logo.clearbit.com/netflix.com',
-  'Tencent': 'https://logo.clearbit.com/tencent.com',
-  'Tesla': 'https://logo.clearbit.com/tesla.com',
-  'Helios Energy': 'https://logo.clearbit.com/heliosenergy.com',
-  'CATL (宁德时代)': 'https://logo.clearbit.com/catl.com',
-  'SpaceX': 'https://logo.clearbit.com/spacex.com',
-  'SF Express (顺丰)': 'https://logo.clearbit.com/sf-express.com',
+  'HSBC': 'https://img.logo.dev/hsbc.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'DBS': 'https://img.logo.dev/dbs.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Bank of China': 'https://img.logo.dev/boc.cn?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Citigroup': 'https://img.logo.dev/citigroup.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Standard Chartered': 'https://img.logo.dev/sc.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'JPMorgan Chase': 'https://img.logo.dev/jpmorganchase.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Aeon Credit': 'https://img.logo.dev/aeoncredit.com.my?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Binance': 'https://img.logo.dev/binance.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Coinbase': 'https://img.logo.dev/coinbase.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Stripe': 'https://img.logo.dev/stripe.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Apple': 'https://img.logo.dev/apple.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Alphabet (Google)': 'https://img.logo.dev/google.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Microsoft': 'https://img.logo.dev/microsoft.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Amazon': 'https://img.logo.dev/amazon.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Meta': 'https://img.logo.dev/meta.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Nvidia': 'https://img.logo.dev/nvidia.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Samsung': 'https://img.logo.dev/samsung.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'TSMC': 'https://img.logo.dev/tsmc.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'OpenAI': 'https://img.logo.dev/openai.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Anthropic': 'https://img.logo.dev/anthropic.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Databricks': 'https://img.logo.dev/databricks.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'ByteDance': 'https://img.logo.dev/bytedance.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Alibaba': 'https://img.logo.dev/alibaba.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Temu': 'https://img.logo.dev/temu.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Shein': 'https://img.logo.dev/shein.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'ShopBack': 'https://img.logo.dev/shopback.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Walmart': 'https://img.logo.dev/walmart.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Grab': 'https://img.logo.dev/grab.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Didi': 'https://img.logo.dev/didiglobal.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Gojek': 'https://img.logo.dev/gojek.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Cathay Pacific': 'https://img.logo.dev/cathaypacific.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Ctrip': 'https://img.logo.dev/trip.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Vodafone': 'https://img.logo.dev/vodafone.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Singtel': 'https://img.logo.dev/singtel.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'StarHub': 'https://img.logo.dev/starhub.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Netflix': 'https://img.logo.dev/netflix.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Tencent': 'https://img.logo.dev/tencent.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Tesla': 'https://img.logo.dev/tesla.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Helios Energy': 'https://img.logo.dev/heliosenergy.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'CATL (宁德时代)': 'https://img.logo.dev/catl.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'SpaceX': 'https://img.logo.dev/spacex.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'SF Express (顺丰)': 'https://img.logo.dev/sf-express.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
 };
 
 // Relevance keywords for sorting
@@ -507,15 +507,8 @@ function setupEventListeners() {
   // ==================== PODCAST ====================
   const podcastBtn = document.getElementById('podcastBtn');
   const podcastPlayer = document.getElementById('podcastPlayer');
-  podcastBtn.addEventListener('click', async () => {
-    // If already playing, pause
-    if (podcastBtn.classList.contains('playing')) {
-      podcastPlayer.pause();
-      podcastBtn.classList.remove('playing');
-      podcastBtn.querySelector('span').textContent = 'Daily Podcast';
-      return;
-    }
-    // Generate podcast
+  // Internal function to actually generate the podcast
+  async function generatePodcast() {
     try {
       podcastBtn.classList.add('loading');
       podcastBtn.querySelector('span').textContent = 'Generating (~20s)...';
@@ -556,12 +549,39 @@ function setupEventListeners() {
       podcastBtn.disabled = false;
       alert(`Podcast generation failed: ${e.message}\n\nThis may be due to TTS not being available on the server. Please check Render logs.`);
     }
+  }
+
+  podcastBtn.addEventListener('click', async () => {
+    // If already playing, pause
+    if (podcastBtn.classList.contains('playing')) {
+      podcastPlayer.pause();
+      podcastBtn.classList.remove('playing');
+      podcastBtn.querySelector('span').textContent = 'Daily Podcast';
+      return;
+    }
+    // Show speed picker - user selects speed, then we generate
+    const podcastSpeedPickerEl = document.getElementById('podcastSpeedPicker');
+    if (podcastSpeedPickerEl && podcastSpeedPickerEl.style.display !== 'flex') {
+      podcastSpeedPickerEl.style.display = 'flex';
+      // Wait for speed selection or auto-generate after a timeout
+      const waitForSelection = new Promise(resolve => {
+        const btns = podcastSpeedPickerEl.querySelectorAll('.btn-speed[data-speed]');
+        const handler = () => { resolve(); btns.forEach(b => b.removeEventListener('click', handler)); };
+        btns.forEach(b => b.addEventListener('click', handler, { once: true }));
+        // Auto-generate at normal speed after 5 seconds if no selection
+        setTimeout(() => { podcastSpeedPickerEl.style.display = 'none'; resolve(); }, 5000);
+      });
+      await waitForSelection;
+    }
+    await generatePodcast();
   });
 
   // ==================== PODCAST SPEED CONTROLS ====================
   const podcastControls = document.getElementById('podcastControls');
-  const speedBtns = document.querySelectorAll('.btn-speed[data-speed]');
+  const podcastSpeedPicker = document.getElementById('podcastSpeedPicker');
+  const speedBtns = document.querySelectorAll('#podcastSpeedPicker .btn-speed[data-speed]');
   const stopBtn = document.getElementById('stopPodcast');
+  let selectedPodcastSpeed = 1; // default normal speed
 
   function showPodcastControls() {
     if (podcastControls) podcastControls.style.display = 'flex';
@@ -569,13 +589,22 @@ function setupEventListeners() {
   function hidePodcastControls() {
     if (podcastControls) podcastControls.style.display = 'none';
   }
+  function showSpeedPicker() {
+    if (podcastSpeedPicker) podcastSpeedPicker.style.display = 'flex';
+  }
+  function hideSpeedPicker() {
+    if (podcastSpeedPicker) podcastSpeedPicker.style.display = 'none';
+  }
 
+  // Speed picker: when user clicks a speed, store it, hide picker, and start generating
   speedBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const speed = parseFloat(btn.dataset.speed);
-      podcastPlayer.playbackRate = speed;
+      selectedPodcastSpeed = parseFloat(btn.dataset.speed);
       speedBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      hideSpeedPicker();
+      // Apply speed to player
+      podcastPlayer.playbackRate = selectedPodcastSpeed;
     });
   });
 
@@ -589,12 +618,13 @@ function setupEventListeners() {
     });
   }
 
-  // Show controls when playing, hide when ended
-  podcastPlayer.addEventListener('play', showPodcastControls);
+  // Show stop control when playing, hide when ended
+  podcastPlayer.addEventListener('play', () => {
+    showPodcastControls();
+    podcastPlayer.playbackRate = selectedPodcastSpeed;
+  });
   podcastPlayer.addEventListener('ended', () => {
     hidePodcastControls();
-    speedBtns.forEach(b => b.classList.remove('active'));
-    speedBtns[0]?.classList.add('active');
   });
 
   // ==================== STRATEGY REPORT ====================
@@ -698,7 +728,7 @@ function setupEventListeners() {
     if (!text || text.includes('Generating')) { alert('Please generate a report first.'); return; }
     const blob = new Blob([text], { type: 'text/plain' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `MarketFeed_Report_${new Date().toISOString().split('T')[0]}.txt`; a.click();
+    a.download = `AlphaFeed_Report_${new Date().toISOString().split('T')[0]}.txt`; a.click();
   });
 
   // Yearly Summary Modal close
@@ -779,8 +809,9 @@ function getLogoUrl(name) {
 }
 
 window.handleLogoError = function(img, name) {
-  if (img.src.includes('clearbit') || img.src.includes('wikipedia')) {
-    const domains = { 'HSBC': 'hsbc.com', 'Grab': 'grab.com', 'Vodafone': 'vodafone.com', 'Cathay Pacific': 'cathaypacific.com', 'Alibaba': 'alibaba.com', 'Standard Chartered': 'sc.com', 'Temu': 'temu.com', 'Ctrip': 'trip.com', 'Didi': 'didiglobal.com', 'DBS': 'dbs.com', 'Tencent': 'tencent.com', 'Bank of China': 'boc.cn', 'ByteDance': 'bytedance.com', 'Gojek': 'gojek.com', 'Citigroup': 'citigroup.com', 'Binance': 'binance.com', 'ShopBack': 'shopback.com', 'Aeon Credit': 'aeoncredit.com.my' };
+  // Fallback chain: logo.dev -> Google favicons -> UI Avatars
+  if (img.src.includes('logo.dev')) {
+    const domains = { 'HSBC': 'hsbc.com', 'Grab': 'grab.com', 'Vodafone': 'vodafone.com', 'Cathay Pacific': 'cathaypacific.com', 'Alibaba': 'alibaba.com', 'Standard Chartered': 'sc.com', 'Temu': 'temu.com', 'Ctrip': 'trip.com', 'Didi': 'didiglobal.com', 'DBS': 'dbs.com', 'Tencent': 'tencent.com', 'Bank of China': 'boc.cn', 'ByteDance': 'bytedance.com', 'Gojek': 'gojek.com', 'Citigroup': 'citigroup.com', 'Binance': 'binance.com', 'ShopBack': 'shopback.com', 'Aeon Credit': 'aeoncredit.com.my', 'CATL (\u5b81\u5fb7\u65f6\u4ee3)': 'catl.com', 'SpaceX': 'spacex.com', 'SF Express (\u987a\u4e30)': 'sf-express.com', 'Helios Energy': 'heliosenergy.com', 'Tesla': 'tesla.com', 'OpenAI': 'openai.com', 'Anthropic': 'anthropic.com' };
     const domain = domains[name];
     if (domain) { img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`; return; }
   }

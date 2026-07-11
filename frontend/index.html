@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>MarketFeed | Enterprise Strategic Intelligence Platform</title>
+    <title>AlphaFeed | Enterprise Strategic Intelligence Platform</title>
     <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 18 enterprise accounts, generate AI-powered strategy reports, and discover engagement opportunities.">
-    <meta name="keywords" content="MarketFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management">
-    <meta name="author" content="MarketFeed Team">
+    <meta name="keywords" content="AlphaFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management">
+    <meta name="author" content="AlphaFeed Team">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://marketfeed.onrender.com">
+    <link rel="canonical" href="https://alphafeed.onrender.com">
     <!-- Open Graph -->
-    <meta property="og:title" content="MarketFeed | Enterprise Strategic Intelligence">
+    <meta property="og:title" content="AlphaFeed | Enterprise Strategic Intelligence">
     <meta property="og:description" content="AI-powered strategic news intelligence for enterprise customer success teams.">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="en_US">
@@ -18,7 +18,7 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MarketFeed">
+    <meta name="apple-mobile-web-app-title" content="AlphaFeed">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "MarketFeed",
+      "name": "AlphaFeed",
       "description": "Enterprise strategic intelligence platform for customer success teams",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
@@ -47,7 +47,7 @@
         <nav class="navbar">
             <div class="nav-container">
                 <div class="nav-left">
-                    <span class="logo"><i class="fas fa-bolt"></i> MarketFeed</span>
+                    <span class="logo"><i class="fas fa-bolt"></i> AlphaFeed</span>
                 </div>
                 
                 <div class="nav-center">
@@ -91,12 +91,12 @@
                         <span>Daily Podcast</span>
                     </button>
                     <audio id="podcastPlayer" style="display: none;"></audio>
-                    <div id="podcastControls" class="podcast-controls" style="display: none;">
-                        <button class="btn-speed" data-speed="1" title="Normal speed">1x</button>
-                        <button class="btn-speed" data-speed="1.25" title="1.25x speed">1.25x</button>
+                    <div id="podcastSpeedPicker" class="podcast-speed-picker" style="display: none;">
+                        <span class="speed-label">Speed:</span>
                         <button class="btn-speed" data-speed="1.5" title="1.5x speed">1.5x</button>
-                        <button class="btn-speed" data-speed="1.75" title="1.75x speed">1.75x</button>
                         <button class="btn-speed" data-speed="2" title="2x speed">2x</button>
+                    </div>
+                    <div id="podcastControls" class="podcast-controls" style="display: none;">
                         <button id="stopPodcast" class="btn-speed btn-stop" title="Stop"><i class="fas fa-stop"></i></button>
                     </div>
                 </div>
@@ -120,14 +120,11 @@
         <div class="filter-bar">
             <div class="nav-container">
                 <div class="quick-time-filters">
-                    <button class="btn-quick-time" data-range="1h">1h</button>
                     <button class="btn-quick-time" data-range="6h">6h</button>
-                    <button class="btn-quick-time" data-range="12h">12h</button>
                     <button class="btn-quick-time active" data-range="24h">24h</button>
-                    <button class="btn-quick-time" data-range="48h">48h</button>
                     <button class="btn-quick-time" data-range="72h">72h</button>
-                    <button class="btn-quick-time" data-range="1w">1w</button>
-                    <button class="btn-quick-time" data-range="1m">1m</button>
+                    <button class="btn-quick-time" data-range="1w">1 week</button>
+                    <button class="btn-quick-time" data-range="1m">1 month</button>
                     <span class="time-divider">|</span>
                     <button class="btn-quick-time btn-yearly" data-range="2023">2023</button>
                     <button class="btn-quick-time btn-yearly" data-range="2024">2024</button>
@@ -302,11 +299,11 @@
     <div id="aiChatWrapper">
         <div id="aiChatWindow" class="ai-chat-window" style="display: none;">
             <div class="ai-chat-header">
-                <span><i class="fas fa-robot"></i> MarketFeed AI</span>
+                <span><i class="fas fa-robot"></i> AlphaFeed AI</span>
                 <span id="closeAiChat" class="close-chat" style="cursor:pointer; font-size: 1.2rem;">&times;</span>
             </div>
             <div id="aiChatMessages" class="ai-chat-messages">
-                <div class="ai-message bot">Hello! I'm your MarketFeed AI assistant. Ask me about company trends, business opportunities, or market analysis.</div>
+                <div class="ai-message bot">Hello! I'm your AlphaFeed AI assistant. Ask me about company trends, business opportunities, or market analysis.</div>
             </div>
             <div class="ai-chat-input-area">
                 <input type="text" id="aiChatInput" placeholder="Ask about companies, trends...">
