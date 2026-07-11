@@ -1,12 +1,12 @@
 /**
- * Strategy Engine - Rubric-aligned strategic analysis for Sinch CSM team
+ * Strategy Engine - Rubric-aligned strategic analysis for Account Management
  * All content presented in clean, designed tables for maximum readability
  * Scored against 5 dimensions (25 points total):
  * 1. Industry Trends (5pts) - Quantifiable business implications, urgency
- * 2. Sinch Use Cases (5pts) - Engaged, Informed, Safe, Happy
+ * 2. Communication Use Cases (5pts) - Engaged, Informed, Safe, Happy
  * 3. Buying Committee (5pts) - Personas, motivations, pain points
  * 4. Real-Life Stories (5pts) - Before/after, emotional + business impact
- * 5. How Sinch Wins (5pts) - Differentiators woven into customer story
+ * 5. Competitive Edge (5pts) - Differentiators woven into customer story
  */
 
 // --- Yearly Summary Data ---
@@ -72,7 +72,7 @@ const YEARLY_EVENTS = {
     'Aeon Credit': ['Fully digital lending platform live', 'AI customer engagement launched', 'Partnered with messaging platforms']
   },
   2026: {
-    'HSBC': ['Q1 earnings beat expectations with strong Asia growth', 'Expanded AI-driven wealth advisory', 'Partnered with Sinch competitor on WhatsApp Banking'],
+    'HSBC': ['Q1 earnings beat expectations with strong Asia growth', 'Expanded AI-driven wealth advisory', 'Partnered with CPaaS provider on WhatsApp Banking'],
     'Grab': ['Launched GrabForBusiness enterprise platform', 'GrabFin reached 10M lending customers', 'AI-powered driver communication system deployed'],
     'Vodafone': ['Three UK merger fully operational', 'Launched next-gen RCS platform for enterprise', 'Announced CPaaS marketplace for SMBs'],
     'Cathay Pacific': ['Record H1 2026 passenger traffic', 'Launched AI-powered rebooking and disruption messaging', 'Expanded cargo e-commerce logistics'],
@@ -101,11 +101,11 @@ function generateYearlySummary(year) {
   const dateLabel = isCurrentYear ? `As of ${today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : `Full Year ${year}`;
   return Object.entries(events).map(([company, highlights]) => ({
     company, year, dateLabel, highlights,
-    sinchRelevance: assessSinchRelevance(highlights)
+    relevance: assessRelevance(highlights)
   }));
 }
 
-function assessSinchRelevance(highlights) {
+function assessRelevance(highlights) {
   const keywords = ['messaging', 'communication', 'api', 'notification', 'sms', 'rcs', 'customer engagement', 'digital', 'platform', 'enterprise', 'app', 'chatbot', 'cpaas', 'omnichannel'];
   const text = highlights.join(' ').toLowerCase();
   const matches = keywords.filter(kw => text.includes(kw));
@@ -118,7 +118,7 @@ function assessSinchRelevance(highlights) {
 // RUBRIC FRAMEWORK
 // =====================================================
 
-const SINCH_USE_CASES = {
+const USE_CASES = {
   ENGAGED: { name: 'Engaged', icon: '💬', capabilities: ['RCS Business Messaging', 'WhatsApp Business API', 'Conversational AI'], triggers: ['customer engagement', 'loyalty', 'retention', 'conversation', 'interactive', 'personalization', 'campaign', 'marketing', 'promotion', 'commerce'], value: '+25-40% customer lifetime value' },
   INFORMED: { name: 'Informed', icon: '📱', capabilities: ['SMS/MMS notifications', 'Push notifications', 'Email API'], triggers: ['notification', 'alert', 'update', 'delivery', 'tracking', 'status', 'reminder', 'booking', 'confirmation', 'travel'], value: '-35% support calls' },
   SAFE: { name: 'Safe', icon: '🔒', capabilities: ['SMS OTP', 'Silent verification', 'Number verification'], triggers: ['security', 'verification', 'authentication', 'fraud', 'otp', 'login', 'identity', 'compliance', 'kyc', 'trust'], value: '99.2% verification success' },
@@ -147,31 +147,31 @@ const INDUSTRY_CONTEXT = {
 };
 
 const BUYING_COMMITTEE = {
-  CTO_VP_ENGINEERING: { title: 'CTO / VP Engineering', priorities: ['System reliability & uptime', 'API performance', 'Security compliance'], painPoints: ['Vendor lock-in', 'Integration complexity', 'Scaling bottlenecks'], sinchPitch: 'Single API for all channels, 99.99% uptime SLA, comprehensive SDKs' },
-  CMO_VP_MARKETING: { title: 'CMO / VP Marketing', priorities: ['Customer engagement rates', 'Campaign ROI', 'Brand experience'], painPoints: ['Low open rates', 'Channel fragmentation', 'Personalization at scale'], sinchPitch: 'Rich messaging with 98% open rates, AI-powered personalization' },
-  CFO_VP_FINANCE: { title: 'CFO / VP Finance', priorities: ['Cost optimization', 'Predictable spend', 'ROI measurement'], painPoints: ['Unpredictable messaging costs', 'Multiple vendor invoices', 'Hard to measure impact'], sinchPitch: 'Consolidated billing across all channels, volume-based pricing' },
-  COO_VP_OPERATIONS: { title: 'COO / VP Operations', priorities: ['Operational efficiency', 'Process automation', 'Vendor consolidation'], painPoints: ['Manual notification processes', 'Too many point solutions', 'Inconsistent delivery'], sinchPitch: 'One platform replaces 5+ point solutions, with orchestration' },
-  HEAD_OF_PRODUCT: { title: 'Head of Product', priorities: ['User experience', 'Feature velocity', 'Engagement metrics'], painPoints: ['Building messaging in-house is expensive', 'Channel coverage gaps', 'Time to market'], sinchPitch: 'Embed rich communication directly into your product with pre-built SDKs' }
+  CTO_VP_ENGINEERING: { title: 'CTO / VP Engineering', priorities: ['System reliability & uptime', 'API performance', 'Security compliance'], painPoints: ['Vendor lock-in', 'Integration complexity', 'Scaling bottlenecks'], pitch: 'Single API for all channels, 99.99% uptime SLA, comprehensive SDKs' },
+  CMO_VP_MARKETING: { title: 'CMO / VP Marketing', priorities: ['Customer engagement rates', 'Campaign ROI', 'Brand experience'], painPoints: ['Low open rates', 'Channel fragmentation', 'Personalization at scale'], pitch: 'Rich messaging with 98% open rates, AI-powered personalization' },
+  CFO_VP_FINANCE: { title: 'CFO / VP Finance', priorities: ['Cost optimization', 'Predictable spend', 'ROI measurement'], painPoints: ['Unpredictable messaging costs', 'Multiple vendor invoices', 'Hard to measure impact'], pitch: 'Consolidated billing across all channels, volume-based pricing' },
+  COO_VP_OPERATIONS: { title: 'COO / VP Operations', priorities: ['Operational efficiency', 'Vendor consolidation', 'Process automation'], painPoints: ['Too many communication vendors', 'Manual processes', 'Inconsistent delivery'], pitch: 'One platform replacing 5+ vendors, automated workflows' },
+  HEAD_OF_PRODUCT: { title: 'Head of Product', priorities: ['User experience', 'Feature velocity', 'Engagement metrics'], painPoints: ['Building messaging in-house is expensive', 'Channel coverage gaps', 'Time to market'], pitch: 'Embed rich communication directly into your product with pre-built SDKs' }
 };
 
-const SINCH_STORIES = {
-  'Banking & Financial Services': { customer: 'a leading APAC bank', before: 'relied on email and branch visits for customer communication, resulting in 12% engagement', after: 'deployed Sinch omnichannel messaging (WhatsApp + RCS + SMS fallback) for transactions', impact: '45% reduction in inbound support calls, 89% message read rate, $2.3M annual savings', timeframe: '8 weeks to full deployment' },
-  'Super App & Mobility': { customer: 'a ride-hailing super app in Southeast Asia', before: 'push notifications had 35% delivery rate, causing missed rides and driver frustration', after: 'implemented Sinch SMS + in-app messaging with smart fallback for critical ride updates', impact: 'Missed ride rate dropped from 8% to 1.2%, driver satisfaction up 40%, support tickets down 55%', timeframe: '4 weeks integration' },
-  'E-commerce & Cloud': { customer: 'a cross-border e-commerce platform', before: 'order notifications via email had 18% open rate, causing "where is my order" support flood', after: 'Sinch WhatsApp order tracking with proactive updates and two-way support', impact: 'WISMO tickets dropped 72%, customer satisfaction up 35%, repeat purchase rate increased 28%', timeframe: '6 weeks to live across 12 markets' },
-  'Cryptocurrency & Fintech': { customer: 'a top-5 global crypto exchange', before: 'security OTPs had 25% failure rate in high-fraud regions, causing account lockouts and $5M monthly in support costs', after: 'implemented Sinch adaptive verification (silent verify + SMS OTP + voice OTP) with real-time fraud scoring', impact: 'OTP success rate reached 99.2%, fraud attempts blocked increased 300%, support tickets dropped 70%', timeframe: '6 weeks to deploy globally' },
-  'E-commerce & Fintech': { customer: 'a cashback and payments platform in APAC', before: 'cashback notifications via push had 22% delivery rate, users missed time-sensitive deals', after: 'Sinch omnichannel notifications with smart timing (push + SMS + WhatsApp)', impact: 'Deal redemption rate increased 85%, MAU grew 23%, merchant satisfaction improved from 3.8 to 4.7', timeframe: '5 weeks integration' },
-  'Consumer Finance': { customer: 'a consumer lending company in SEA with 5M+ borrowers', before: 'payment reminders via SMS had 40% read rate, resulting in 18% late payment rate', after: 'deployed Sinch WhatsApp payment reminders with one-tap payment links', impact: 'On-time payment rate improved from 82% to 94%, collections costs dropped 45%', timeframe: '4 weeks to pilot, 8 weeks to full portfolio' },
-  'Telecommunications': { customer: 'a European telecom operator', before: 'enterprise messaging was fragmented across 4 platforms with no unified analytics', after: 'consolidated on Sinch CPaaS with white-label RCS for enterprise clients', impact: 'Enterprise messaging revenue grew 180%, client onboarding time reduced from 6 weeks to 3 days', timeframe: '12 weeks for full platform migration' },
-  'Aviation & Travel': { customer: 'a major Asian airline', before: 'flight disruption notifications reached only 60% of affected passengers via email/app push', after: 'Sinch multi-channel alerts (SMS + WhatsApp + RCS) with automated rebooking links', impact: 'Passenger reach rate hit 97%, call center volume during disruptions dropped 65%', timeframe: '5 weeks integration' },
+const SUCCESS_STORIES = {
+  'Banking & Financial Services': { customer: 'a leading APAC bank', before: 'relied on email and branch visits for customer communication, resulting in 12% engagement', after: 'deployed omnichannel messaging (WhatsApp + RCS + SMS fallback) for transactions', impact: '45% reduction in inbound support calls, 89% message read rate, $2.3M annual savings', timeframe: '8 weeks to full deployment' },
+  'Super App & Mobility': { customer: 'a ride-hailing super app in Southeast Asia', before: 'push notifications had 35% delivery rate, causing missed rides and driver frustration', after: 'implemented SMS + in-app messaging with smart fallback for critical ride updates', impact: 'Missed ride rate dropped from 8% to 1.2%, driver satisfaction up 40%, support tickets down 55%', timeframe: '4 weeks integration' },
+  'E-commerce & Cloud': { customer: 'a cross-border e-commerce platform', before: 'order notifications via email had 18% open rate, causing "where is my order" support flood', after: 'WhatsApp order tracking with proactive updates and two-way support', impact: 'WISMO tickets dropped 72%, customer satisfaction up 35%, repeat purchase rate increased 28%', timeframe: '6 weeks to live across 12 markets' },
+  'Cryptocurrency & Fintech': { customer: 'a top-5 global crypto exchange', before: 'security OTPs had 25% failure rate in high-fraud regions, causing account lockouts and $5M monthly in support costs', after: 'implemented adaptive verification (silent verify + SMS OTP + voice OTP) with real-time fraud scoring', impact: 'OTP success rate reached 99.2%, fraud attempts blocked increased 300%, support tickets dropped 70%', timeframe: '6 weeks to deploy globally' },
+  'E-commerce & Fintech': { customer: 'a cashback and payments platform in APAC', before: 'cashback notifications via push had 22% delivery rate, users missed time-sensitive deals', after: 'omnichannel notifications with smart timing (push + SMS + WhatsApp)', impact: 'Deal redemption rate increased 85%, MAU grew 23%, merchant satisfaction improved from 3.8 to 4.7', timeframe: '5 weeks integration' },
+  'Consumer Finance': { customer: 'a consumer lending company in SEA with 5M+ borrowers', before: 'payment reminders via SMS had 40% read rate, resulting in 18% late payment rate', after: 'deployed WhatsApp payment reminders with one-tap payment links', impact: 'On-time payment rate improved from 82% to 94%, collections costs dropped 45%', timeframe: '4 weeks to pilot, 8 weeks to full portfolio' },
+  'Telecommunications': { customer: 'a European telecom operator', before: 'enterprise messaging was fragmented across 4 platforms with no unified analytics', after: 'consolidated on CPaaS with white-label RCS for enterprise clients', impact: 'Enterprise messaging revenue grew 180%, client onboarding time reduced from 6 weeks to 3 days', timeframe: '12 weeks for full platform migration' },
+  'Aviation & Travel': { customer: 'a major Asian airline', before: 'flight disruption notifications reached only 60% of affected passengers via email/app push', after: 'multi-channel alerts (SMS + WhatsApp + RCS) with automated rebooking links', impact: 'Passenger reach rate hit 97%, call center volume during disruptions dropped 65%', timeframe: '5 weeks integration' },
   'Travel & Hospitality': { customer: 'a leading online travel agency', before: 'booking confirmations via email had 45% open rate, causing check-in confusion', after: 'WhatsApp booking confirmations with interactive itinerary and real-time updates', impact: 'Confirmation engagement reached 94%, no-show rate dropped 40%, upsell revenue increased 22%', timeframe: '4 weeks to deploy' },
-  'Technology & Gaming': { customer: 'a global gaming company', before: 'account security relied on email-based 2FA with 15% failure rate', after: 'Sinch silent number verification + SMS OTP fallback for seamless authentication', impact: 'Authentication success rate reached 99.5%, account takeover incidents dropped 85%', timeframe: '3 weeks integration' },
-  'Technology & Media': { customer: 'a social media platform', before: 'creator notifications via in-app only, 40% of creators missed time-sensitive opportunities', after: 'Sinch multi-channel creator alerts (SMS + push + email) with preference management', impact: 'Creator response rate improved 3x, platform engagement hours increased 25%', timeframe: '6 weeks' },
-  'Digital Banking': { customer: 'a digital-first bank in Asia', before: 'transaction alerts via push had 50% delivery rate, causing fraud detection delays', after: 'Sinch real-time SMS + WhatsApp transaction alerts with one-tap fraud reporting', impact: 'Fraud reporting speed improved 80%, false positive resolution time cut from 48h to 2h', timeframe: '4 weeks' },
-  'E-commerce & Retail': { customer: 'a fast-growing e-commerce marketplace', before: 'promotional messages via email had 12% open rate, flash sales underperformed', after: 'Sinch RCS rich media promotions with carousel product displays and buy buttons', impact: 'Flash sale conversion increased 340%, unsubscribe rate dropped 60%', timeframe: '3 weeks to first campaign' },
-  'Super App & Fintech': { customer: 'a Southeast Asian fintech super app', before: 'payment confirmations via push had unreliable delivery, causing user anxiety', after: 'Sinch instant SMS confirmations + WhatsApp receipts with smart channel selection', impact: 'User trust score improved 45%, payment dispute rate dropped 70%', timeframe: '4 weeks' }
+  'Technology & Gaming': { customer: 'a global gaming company', before: 'account security relied on email-based 2FA with 15% failure rate', after: 'silent number verification + SMS OTP fallback for seamless authentication', impact: 'Authentication success rate reached 99.5%, account takeover incidents dropped 85%', timeframe: '3 weeks integration' },
+  'Technology & Media': { customer: 'a social media platform', before: 'creator notifications via in-app only, 40% of creators missed time-sensitive opportunities', after: 'multi-channel creator alerts (SMS + push + email) with preference management', impact: 'Creator response rate improved 3x, platform engagement hours increased 25%', timeframe: '6 weeks' },
+  'Digital Banking': { customer: 'a digital-first bank in Asia', before: 'transaction alerts via push had 50% delivery rate, causing fraud detection delays', after: 'real-time SMS + WhatsApp transaction alerts with one-tap fraud reporting', impact: 'Fraud reporting speed improved 80%, false positive resolution time cut from 48h to 2h', timeframe: '4 weeks' },
+  'E-commerce & Retail': { customer: 'a fast-growing e-commerce marketplace', before: 'promotional messages via email had 12% open rate, flash sales underperformed', after: 'RCS rich media promotions with carousel product displays and buy buttons', impact: 'Flash sale conversion increased 340%, unsubscribe rate dropped 60%', timeframe: '3 weeks to first campaign' },
+  'Super App & Fintech': { customer: 'a Southeast Asian fintech super app', before: 'payment confirmations via push had unreliable delivery, causing user anxiety', after: 'instant SMS confirmations + WhatsApp receipts with smart channel selection', impact: 'User trust score improved 45%, payment dispute rate dropped 70%', timeframe: '4 weeks' }
 };
 
-const SINCH_DIFFERENTIATORS = {
+const DIFFERENTIATORS = {
   scale: '700B+ messages annually across 600+ operator connections',
   reach: 'Direct connections in 190+ countries with local number provisioning',
   reliability: '99.99% uptime SLA backed by redundant global infrastructure',
@@ -205,7 +205,7 @@ function matchUseCases(articles) {
   const matches = { ENGAGED: [], INFORMED: [], SAFE: [], HAPPY: [] };
   articles.forEach(article => {
     const text = ((article.title || '') + ' ' + (article.description || '')).toLowerCase();
-    for (const [useCase, config] of Object.entries(SINCH_USE_CASES)) {
+    for (const [useCase, config] of Object.entries(USE_CASES)) {
       if (config.triggers.some(trigger => text.includes(trigger))) {
         matches[useCase].push(article);
       }
@@ -246,11 +246,11 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   newsArticles.forEach(n => { if (!grouped[n.company]) grouped[n.company] = []; grouped[n.company].push(n); });
   const companies = Object.keys(grouped);
 
-  // Sinch-relevant signals
-  const sinchKeywords = ['messaging', 'communication', 'notification', 'sms', 'rcs', 'api', 'customer engagement', 'digital', 'app', 'platform', 'chatbot', 'ai', 'omnichannel', 'enterprise', 'verification'];
-  const sinchOpportunities = newsArticles.filter(n => {
+  // Actionable signals (communication/digital relevant)
+  const relevanceKeywords = ['messaging', 'communication', 'notification', 'sms', 'rcs', 'api', 'customer engagement', 'digital', 'app', 'platform', 'chatbot', 'ai', 'omnichannel', 'enterprise', 'verification'];
+  const actionableSignals = newsArticles.filter(n => {
     const text = ((n.title || '') + ' ' + (n.description || '')).toLowerCase();
-    return sinchKeywords.some(kw => text.includes(kw));
+    return relevanceKeywords.some(kw => text.includes(kw));
   });
 
   // Use case matching
@@ -263,7 +263,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   const competitorKeywords = ['twilio', 'vonage', 'infobip', 'messagebird', 'bandwidth', 'plivo'];
   const highUrgency = Object.entries(grouped).filter(([, articles]) => {
     const text = articles.map(a => `${a.title} ${a.description || ''}`).join(' ').toLowerCase();
-    return competitorKeywords.some(kw => text.includes(kw)) || sinchKeywords.filter(kw => text.includes(kw)).length >= 3;
+    return competitorKeywords.some(kw => text.includes(kw)) || relevanceKeywords.filter(kw => text.includes(kw)).length >= 3;
   });
 
   // ===== BUILD REPORT =====
@@ -272,20 +272,20 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `| **Date** | ${date} |\n`;
   report += `| **Period** | ${ctx.timeframe} |\n`;
   report += `| **Total Signals** | ${newsArticles.length} across ${companies.length} accounts |\n`;
-  report += `| **Sinch-Relevant** | ${sinchOpportunities.length} signals (${Math.round(sinchOpportunities.length / newsArticles.length * 100)}%) |\n`;
+  report += `| **Actionable** | ${actionableSignals.length} signals (${Math.round(actionableSignals.length / newsArticles.length * 100)}%) |\n`;
   report += `| **Priority Accounts** | ${highUrgency.length > 0 ? highUrgency.map(([c]) => c).join(', ') : 'None this period'} |\n\n`;
 
   // ===== SECTION 1: INDUSTRY TRENDS =====
   report += `## 1. Industry Trends & Urgency\n\n`;
-  const topSignals = sinchOpportunities.length > 0 ? sinchOpportunities.slice(0, 6) : newsArticles.slice(0, 6);
-  report += `| # | Company | Signal | Type | Sinch Implication |\n`;
-  report += `|---|---------|--------|------|-------------------|\n`;
+  const topSignals = actionableSignals.length > 0 ? actionableSignals.slice(0, 6) : newsArticles.slice(0, 6);
+  report += `| # | Company | Signal | Type | Business Implication |\n`;
+  report += `|---|---------|--------|------|---------------------|\n`;
   const implications = {
-    EXPANSION: 'New market = 3-5x notification volume',
+    EXPANSION: 'New market = 3-5x notification volume growth',
     TECHNOLOGY: 'Platform investment = 40% higher messaging spend',
     FINANCIAL: 'Revenue growth = 2.5x more likely to approve vendors',
     PARTNERSHIP: 'Partner expansion = 60% increase in API calls',
-    RISK: 'Service issues = 3x more receptive to failover',
+    RISK: 'Service issues = 3x more receptive to failover solutions',
     GENERAL: 'Evolving needs = engagement window open'
   };
   topSignals.forEach((article, i) => {
@@ -295,10 +295,10 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `\n| Conversation Opener |\n|---|\n| *"I noticed [signal] about your company. How is this affecting your communication strategy? Are you seeing increased pressure on messaging volume?"* |\n\n`;
 
   // ===== SECTION 2: USE CASE MAPPING =====
-  report += `## 2. Sinch Use Case Mapping\n\n`;
+  report += `## 2. Communication Use Case Mapping\n\n`;
   report += `| Pillar | Signals | Key Accounts | Lead Capability | Business Value |\n`;
   report += `|--------|---------|--------------|-----------------|----------------|\n`;
-  for (const [key, uc] of Object.entries(SINCH_USE_CASES)) {
+  for (const [key, uc] of Object.entries(USE_CASES)) {
     const matched = useCaseMatches[key];
     const cos = [...new Set(matched.map(a => a.company))].slice(0, 3);
     report += `| ${uc.icon} **${uc.name}** | ${matched.length} | ${cos.length > 0 ? cos.join(', ') : '—'} | ${uc.capabilities[0]} | ${uc.value} |\n`;
@@ -307,7 +307,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   // Top use case detail
   const topUC = Object.entries(useCaseMatches).sort((a, b) => b[1].length - a[1].length)[0];
   if (topUC && topUC[1].length > 0) {
-    const uc = SINCH_USE_CASES[topUC[0]];
+    const uc = USE_CASES[topUC[0]];
     report += `\n| Focus: ${uc.icon} ${uc.name} | Detail |\n|---|---|\n`;
     report += `| **Why now** | ${topUC[1].length} signals detected this period |\n`;
     report += `| **Top account** | ${topUC[1][0]?.company}: "${topUC[1][0]?.title.substring(0, 60)}..." |\n`;
@@ -320,14 +320,14 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `## 3. Buying Committee Map\n\n`;
   topCompanies.slice(0, 2).forEach(([company, articles]) => {
     const personas = identifyBuyingCommittee(articles);
-    const ctx = INDUSTRY_CONTEXT[company];
-    report += `### ${company} (${ctx?.vertical || 'Technology'})\n\n`;
-    report += `| Persona | Priority | Pain Point | Sinch Pitch |\n`;
-    report += `|---------|----------|------------|-------------|\n`;
+    const indCtx = INDUSTRY_CONTEXT[company];
+    report += `### ${company} (${indCtx?.vertical || 'Technology'})\n\n`;
+    report += `| Persona | Priority | Pain Point | Value Proposition |\n`;
+    report += `|---------|----------|------------|-------------------|\n`;
     personas.slice(0, 3).forEach(pk => {
       const p = BUYING_COMMITTEE[pk];
       if (!p) return;
-      report += `| **${p.title}** | ${p.priorities[0]} | ${p.painPoints[0]} | ${p.sinchPitch.substring(0, 55)}... |\n`;
+      report += `| **${p.title}** | ${p.priorities[0]} | ${p.painPoints[0]} | ${p.pitch.substring(0, 55)}... |\n`;
     });
     report += `\n| Navigation Strategy |\n|---|\n| Entry: ${BUYING_COMMITTEE[personas[0]]?.title || 'Technical lead'} → Expand to: ${BUYING_COMMITTEE[personas[1]]?.title || 'Business sponsor'} → Champion: ${BUYING_COMMITTEE[personas[2]]?.title || 'Operations'} |\n\n`;
   });
@@ -337,12 +337,12 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `## 4. Success Story to Tell\n\n`;
   const storyCompany = topCompanies[0]?.[0] || companies[0];
   const storyCtx = INDUSTRY_CONTEXT[storyCompany];
-  const story = SINCH_STORIES[storyCtx?.vertical] || SINCH_STORIES['Banking & Financial Services'];
+  const story = SUCCESS_STORIES[storyCtx?.vertical] || SUCCESS_STORIES['Banking & Financial Services'];
 
   report += `| | For your conversation with **${storyCompany}** |\n|---|---|\n`;
   report += `| **Customer** | ${story.customer} |\n`;
-  report += `| **Before Sinch** | ${story.before} |\n`;
-  report += `| **After Sinch** | ${story.after} |\n`;
+  report += `| **Before** | ${story.before} |\n`;
+  report += `| **After** | ${story.after} |\n`;
   report += `| **Results** | ${story.impact} |\n`;
   report += `| **Timeline** | ${story.timeframe} |\n`;
   report += `\n| Story Bridge |\n|---|\n| *"Does this sound familiar? Given your recent [signal], are you facing similar challenges around [pain point]?"* |\n\n`;
@@ -351,7 +351,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   if (topCompanies.length > 1) {
     const co2 = topCompanies[1][0];
     const ctx2 = INDUSTRY_CONTEXT[co2];
-    const story2 = SINCH_STORIES[ctx2?.vertical] || SINCH_STORIES['E-commerce & Cloud'];
+    const story2 = SUCCESS_STORIES[ctx2?.vertical] || SUCCESS_STORIES['E-commerce & Cloud'];
     if (ctx2?.vertical !== storyCtx?.vertical) {
       report += `| | For **${co2}** |\n|---|---|\n`;
       report += `| **Customer** | ${story2.customer} |\n`;
@@ -360,26 +360,26 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
     }
   }
 
-  // ===== SECTION 5: WHY SINCH WINS =====
-  report += `## 5. Why Sinch Wins Here\n\n`;
+  // ===== SECTION 5: COMPETITIVE EDGE =====
+  report += `## 5. Competitive Edge\n\n`;
   report += `| Differentiator | What It Means for Your Accounts |\n`;
   report += `|----------------|----------------------------------|\n`;
 
   const diffRows = [];
   if (newsArticles.some(a => ((a.title || '') + (a.description || '')).toLowerCase().match(/scale|growth|expand|million|billion/))) {
-    diffRows.push(`| **Scale** | ${SINCH_DIFFERENTIATORS.scale}. When accounts grow, messaging just works. |`);
+    diffRows.push(`| **Scale** | ${DIFFERENTIATORS.scale}. When accounts grow, messaging just works. |`);
   }
   if (newsArticles.some(a => ((a.title || '') + (a.description || '')).toLowerCase().match(/international|global|cross-border|multi-market/))) {
-    diffRows.push(`| **Global Reach** | ${SINCH_DIFFERENTIATORS.reach}. No telecom compliance headaches. |`);
+    diffRows.push(`| **Global Reach** | ${DIFFERENTIATORS.reach}. No telecom compliance headaches. |`);
   }
   if (useCaseMatches.ENGAGED.length > 0 || useCaseMatches.INFORMED.length > 0) {
-    diffRows.push(`| **Omnichannel** | ${SINCH_DIFFERENTIATORS.omnichannel}. Replace 5 vendors with one. |`);
+    diffRows.push(`| **Omnichannel** | ${DIFFERENTIATORS.omnichannel}. Replace 5 vendors with one. |`);
   }
   if (useCaseMatches.SAFE.length > 0) {
-    diffRows.push(`| **Trust** | ${SINCH_DIFFERENTIATORS.reliability}. Every user verified, every bad actor blocked. |`);
+    diffRows.push(`| **Trust** | ${DIFFERENTIATORS.reliability}. Every user verified, every bad actor blocked. |`);
   }
-  diffRows.push(`| **Speed** | ${SINCH_DIFFERENTIATORS.speed}. Live in days, not months. |`);
-  diffRows.push(`| **Intelligence** | ${SINCH_DIFFERENTIATORS.intelligence}. Maximize delivery, minimize cost. |`);
+  diffRows.push(`| **Speed** | ${DIFFERENTIATORS.speed}. Live in days, not months. |`);
+  diffRows.push(`| **Intelligence** | ${DIFFERENTIATORS.intelligence}. Maximize delivery, minimize cost. |`);
 
   diffRows.slice(0, 4).forEach(row => { report += row + '\n'; });
   report += `\n| Closing Question |\n|---|\n| *"Based on what we discussed, do you see how this approach would address [their challenge] differently than what you have today?"* |\n\n`;
@@ -395,7 +395,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
     });
   }
   const medUrgency = Object.entries(grouped).filter(([c]) => !highUrgency.some(([h]) => h === c)).slice(0, 3);
-  medUrgency.forEach(([company, articles]) => {
+  medUrgency.forEach(([company]) => {
     report += `| 🟡 Medium | ${company} | Schedule touchpoint, reference recent signal | This week |\n`;
   });
   if (highUrgency.length === 0 && medUrgency.length === 0) {
@@ -405,7 +405,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `\n| Ongoing Actions |\n|---|\n`;
   report += `| Update QBR decks for accounts with 3+ signals |\n`;
   report += `| Share report insights with AE partners |\n`;
-  report += `| Log key signals in Salesforce for next touchpoint |\n`;
+  report += `| Log key signals in CRM for next touchpoint |\n`;
 
   // ===== TREND ANALYSIS (weekly+) =====
   if (period !== 'daily') {

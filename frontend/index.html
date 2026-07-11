@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>MarketFeed | Enterprise Strategic Intelligence for Sinch CSM</title>
-    <meta name="description" content="Real-time strategic news intelligence for Sinch Customer Success Managers. Track 18 enterprise accounts, generate AI-powered strategy reports, and discover engagement opportunities.">
-    <meta name="keywords" content="MarketFeed, Sinch, CSM, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success">
-    <meta name="author" content="Sinch CSM Team">
-    <meta name="robots" content="noindex, nofollow">
+    <title>MarketFeed | Enterprise Strategic Intelligence Platform</title>
+    <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 18 enterprise accounts, generate AI-powered strategy reports, and discover engagement opportunities.">
+    <meta name="keywords" content="MarketFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management">
+    <meta name="author" content="MarketFeed Team">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://marketfeed.onrender.com">
     <!-- Open Graph -->
     <meta property="og:title" content="MarketFeed | Enterprise Strategic Intelligence">
     <meta property="og:description" content="AI-powered strategic news intelligence for enterprise customer success teams.">
@@ -196,7 +197,29 @@
         <main class="main-content">
             <div class="nav-container">
                 <div id="newsList" class="news-list"></div>
-                
+
+                <!-- Pagination Controls -->
+                <div id="paginationContainer" class="pagination-container" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="paginationSummary">Showing 1-20 of 100</span>
+                        <div class="page-size-selector">
+                            <span class="filter-label">Per page</span>
+                            <button class="btn-page-size active" data-size="20">20</button>
+                            <button class="btn-page-size" data-size="50">50</button>
+                            <button class="btn-page-size" data-size="100">100</button>
+                        </div>
+                    </div>
+                    <div class="pagination-nav">
+                        <button id="prevPage" class="btn-page-nav" title="Previous page">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div id="pageNumbers" class="page-numbers"></div>
+                        <button id="nextPage" class="btn-page-nav" title="Next page">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Loading State -->
                 <div id="loadingSpinner" class="loading" style="display: none;">
                     <div class="spinner"></div>

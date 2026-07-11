@@ -115,23 +115,22 @@ function generatePodcastScript(news) {
 
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const sinchKeywords = ['messaging', 'sms', 'communication', 'api', 'cloud', 'cpaas', 'digital',
+  const relevanceKeywords = ['messaging', 'sms', 'communication', 'api', 'cloud', 'cpaas', 'digital',
     'notification', 'verification', 'authentication', 'omnichannel', 'mobile', 'platform',
     'partnership', 'expansion', 'enterprise', 'fintech', 'banking', 'customer experience'];
 
   const scored = news.map(article => {
     const text = `${article.title} ${article.description || ''}`.toLowerCase();
-    let score = sinchKeywords.filter(kw => text.includes(kw)).length * 2;
-    if (text.includes('sinch')) score += 10;
+    let score = relevanceKeywords.filter(kw => text.includes(kw)).length * 2;
     return { ...article, score };
   });
 
   const top5 = scored.sort((a, b) => b.score - a.score).slice(0, 5);
 
   const transitions = ['First up.', 'Next.', 'Moving on.', 'Also worth noting.', 'And finally.'];
-  const sinchHooks = [
+  const insightHooks = [
     'That is right in our wheelhouse.',
-    'Classic opportunity for a Sinch conversation.',
+    'Classic opportunity for an engagement conversation.',
     'Where there is platform investment, there is API demand.',
     'New markets mean new messaging needs.',
     'Growth mode. Perfect time to reach out.'
@@ -155,9 +154,9 @@ function generatePodcastScript(news) {
       script += `${title}. `;
     }
 
-    // Add Sinch angle for high-scoring articles
+    // Add insight for high-scoring articles
     if (article.score >= 4) {
-      script += `${sinchHooks[idx]} `;
+      script += `${insightHooks[idx]} `;
     }
   });
 

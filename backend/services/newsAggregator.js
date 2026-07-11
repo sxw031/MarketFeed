@@ -180,7 +180,7 @@ async function getNews(filters = {}) {
 
   // Sort support
   if (filters.sort === 'relevance') {
-    // Sort by Sinch relevance - articles with messaging/communication keywords first
+    // Sort by relevance - articles with messaging/communication keywords first
     sql += ` ORDER BY (
       CASE WHEN (lower(title) LIKE '%messaging%' OR lower(title) LIKE '%communication%' OR lower(title) LIKE '%api%' OR lower(title) LIKE '%notification%' OR lower(title) LIKE '%sms%' OR lower(title) LIKE '%rcs%' OR lower(title) LIKE '%whatsapp%' OR lower(title) LIKE '%chatbot%' OR lower(title) LIKE '%omnichannel%' OR lower(title) LIKE '%cpaas%' OR lower(title) LIKE '%customer engagement%' OR lower(title) LIKE '%digital%' OR lower(title) LIKE '%platform%' OR lower(title) LIKE '%enterprise%') THEN 0 ELSE 1 END
     ), publishedAt DESC`;

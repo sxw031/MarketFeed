@@ -7,6 +7,8 @@ let selectedCompanies = JSON.parse(localStorage.getItem(SELECTED_COMPANIES_KEY) 
 let activeTimeRange = null;
 let currentSort = 'latest'; // 'latest' or 'relevance'
 let pollingTimer = null;
+let currentPage = 1;
+let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
 
 // Logo URLs - reliable sources for each company
 const LOGO_MAP = {
@@ -30,8 +32,8 @@ const LOGO_MAP = {
   'Aeon Credit': 'https://logo.clearbit.com/aeoncredit.com.my'
 };
 
-// Sinch relevance keywords for sorting
-const SINCH_KEYWORDS = [
+// Relevance keywords for sorting
+const RELEVANCE_KEYWORDS = [
   'messaging', 'sms', 'communication', 'api', 'cpaas', 'cloud', 'digital transformation',
   'customer engagement', 'notification', 'verification', 'otp', 'rcs', 'whatsapp',
   'chatbot', 'omnichannel', 'mobile', 'fintech', 'payment', 'authentication',
@@ -71,7 +73,7 @@ async function loadCompanies() {
 }
 
 async function loadNews(silent = false) {
-  if (!silent) showLoading(true);
+  if (!silent) { showLoading(true); currentPage = 1; }
   try {
     let url = `${API_BASE}?limit=300`;
     if (activeTimeRange) url += `&startDate=${encodeURIComponent(activeTimeRange)}`;
@@ -100,14 +102,14 @@ async function loadNews(silent = false) {
 }
 
 // ==================== SORTING ====================
-function calculateSinchRelevance(article) {
+function calculateRelevance(article) {
   let score = 0;
   const text = `${article.title} ${article.description || ''}`.toLowerCase();
-  SINCH_KEYWORDS.forEach(kw => {
+  RELEVANCE_KEYWORDS.forEach(kw => {
     if (text.includes(kw)) score += 2;
   });
   if (article.category === 'Strategic Insights') score += 5;
-  // Boost companies with higher Sinch relevance
+  // Boost companies with higher engagement relevance
   const highRelevance = ['Grab', 'DBS', 'Vodafone', 'HSBC', 'Standard Chartered', 'Tencent', 'Alibaba'];
   if (highRelevance.includes(article.company)) score += 3;
   return score;
@@ -115,7 +117,7 @@ function calculateSinchRelevance(article) {
 
 function sortAndRender() {
   if (currentSort === 'relevance') {
-    allNews.sort((a, b) => calculateSinchRelevance(b) - calculateSinchRelevance(a));
+    allNews.sort((a, b) => calculateRelevance(b) - calculateRelevance(a));
   } else if (currentSort === 'oldest') {
     allNews.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
   } else {
@@ -174,21 +176,80 @@ function showSyncBar(show, text, pct) {
 // ==================== RENDERING ====================
 function renderNews() {
   const list = document.getElementById('newsList');
-  if (allNews.length === 0) { showEmptyState(true); return; }
+  if (allNews.length === 0) { showEmptyState(true); hidePagination(); return; }
   showEmptyState(false);
-  list.innerHTML = allNews.map(a => createCard(a)).join('');
+
+  // Pagination
+  const totalItems = allNews.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, totalItems);
+  const pageItems = allNews.slice(startIdx, endIdx);
+
+  list.innerHTML = pageItems.map(a => createCard(a)).join('');
   list.querySelectorAll('.news-card').forEach(card => {
     card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
   });
+
+  renderPagination(totalItems, totalPages, startIdx, endIdx);
+  // Scroll to top of news list on page change
+  list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderPagination(totalItems, totalPages, startIdx, endIdx) {
+  const container = document.getElementById('paginationContainer');
+  const summary = document.getElementById('paginationSummary');
+  const pageNumbersEl = document.getElementById('pageNumbers');
+  const prevBtn = document.getElementById('prevPage');
+  const nextBtn = document.getElementById('nextPage');
+
+  if (totalItems <= 20) { container.style.display = 'none'; return; }
+  container.style.display = 'flex';
+
+  summary.textContent = `Showing ${startIdx + 1}-${endIdx} of ${totalItems}`;
+  prevBtn.disabled = currentPage <= 1;
+  nextBtn.disabled = currentPage >= totalPages;
+
+  // Generate page numbers with ellipsis
+  let pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  pageNumbersEl.innerHTML = pages.map(p => {
+    if (p === '...') return '<span class="page-ellipsis">...</span>';
+    return `<button class="btn-page-num ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+  }).join('');
+
+  // Update page size buttons
+  document.querySelectorAll('.btn-page-size').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.size) === pageSize);
+  });
+}
+
+function hidePagination() {
+  const container = document.getElementById('paginationContainer');
+  if (container) container.style.display = 'none';
 }
 
 function createCard(article) {
   const logo = getLogoUrl(article.company);
   const date = formatRelativeTime(article.publishedAt);
   const isStrategic = article.category === 'Strategic Insights';
-  const relevanceScore = calculateSinchRelevance(article);
-  const relevanceDot = relevanceScore >= 8 ? '<span class="relevance-dot high" title="High Sinch relevance"></span>' :
-                       relevanceScore >= 4 ? '<span class="relevance-dot medium" title="Medium Sinch relevance"></span>' : '';
+  const relevanceScore = calculateRelevance(article);
+  const relevanceDot = relevanceScore >= 8 ? '<span class="relevance-dot high" title="High relevance"></span>' :
+                       relevanceScore >= 4 ? '<span class="relevance-dot medium" title="Medium relevance"></span>' : '';
   return `
     <div class="news-card ${isStrategic ? 'strategic' : ''}" data-article='${JSON.stringify(article).replace(/'/g, "&#39;")}'>
       <div class="news-card-image-container">
@@ -263,7 +324,7 @@ function renderYearlySummary(companies, year) {
     <p>${dateLabel} | ${companies.length} tracked accounts</p></div>`;
 
   companies.forEach(c => {
-    const relevanceClass = c.sinchRelevance === 'High' ? 'relevance-high' : c.sinchRelevance === 'Medium' ? 'relevance-medium' : 'relevance-low';
+    const relevanceClass = c.relevance === 'High' ? 'relevance-high' : c.relevance === 'Medium' ? 'relevance-medium' : 'relevance-low';
     const logo = getLogoUrl(c.company);
     html += `
       <div class="yearly-company-card">
@@ -271,7 +332,7 @@ function renderYearlySummary(companies, year) {
           <img src="${logo}" alt="${c.company}" class="yearly-logo" onerror="handleLogoError(this,'${c.company}')">
           <div>
             <h3>${c.company}</h3>
-            <span class="badge ${relevanceClass}">Sinch: ${c.sinchRelevance}</span>
+            <span class="badge ${relevanceClass}">Relevance: ${c.relevance}</span>
           </div>
         </div>
         <ul class="yearly-highlights">
@@ -634,6 +695,27 @@ function setupEventListeners() {
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
     document.querySelector('#themeToggle i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  });
+
+  // ==================== PAGINATION ====================
+  document.getElementById('prevPage').addEventListener('click', () => {
+    if (currentPage > 1) { currentPage--; renderNews(); }
+  });
+  document.getElementById('nextPage').addEventListener('click', () => {
+    const totalPages = Math.ceil(allNews.length / pageSize);
+    if (currentPage < totalPages) { currentPage++; renderNews(); }
+  });
+  document.getElementById('pageNumbers').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-page-num');
+    if (btn) { currentPage = parseInt(btn.dataset.page); renderNews(); }
+  });
+  document.querySelectorAll('.btn-page-size').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pageSize = parseInt(btn.dataset.size);
+      localStorage.setItem('mf_pageSize', pageSize);
+      currentPage = 1;
+      renderNews();
+    });
   });
 
   // Modal close handlers

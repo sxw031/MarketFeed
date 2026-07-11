@@ -10,10 +10,45 @@ const { generateHeuristicReport } = require('./services/strategyEngine');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 // Middleware
 app.use(compression()); // gzip all responses
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+// Basic rate limiting (in-memory, per IP)
+const rateLimitMap = new Map();
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    const windowMs = 60000; // 1 minute
+    const maxRequests = 100; // 100 requests per minute per IP
+    const record = rateLimitMap.get(ip) || { count: 0, start: now };
+    if (now - record.start > windowMs) {
+      record.count = 1; record.start = now;
+    } else {
+      record.count++;
+    }
+    rateLimitMap.set(ip, record);
+    if (record.count > maxRequests) {
+      return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+  }
+  next();
+});
+// Cleanup rate limit map every 5 minutes
+setInterval(() => { const now = Date.now(); for (const [k, v] of rateLimitMap) { if (now - v.start > 120000) rateLimitMap.delete(k); } }, 300000);
 
 // Static files with aggressive caching for assets
 app.use(express.static(path.join(__dirname, '../frontend'), {
@@ -73,11 +108,11 @@ app.post('/api/news/ai/strategy', async (req, res) => {
   }
 });
 
-// AI Chat - Smart heuristic Q&A tailored for Sinch CSMs
+// AI Chat - Smart heuristic Q&A for account managers
 app.post('/api/news/ai/chat', async (req, res) => {
   try {
     const { query, context } = req.body;
-    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your MarketFeed assistant. Ask me about any of the 18 companies I track, market trends, or Sinch engagement opportunities.' });
+    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your MarketFeed assistant. Ask me about any of the 18 companies I track, market trends, or engagement opportunities.' });
 
     const q = query.toLowerCase();
     const news = context || [];
@@ -95,7 +130,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
 
     // Detect intent
     const isAboutTrends = /trend|overview|summary|what.s happening|update|latest|market|today/i.test(query);
-    const isAboutSinch = /sinch|opportunity|csm|engagement|outreach|upsell|cross.sell|prospect|pipeline/i.test(query);
+    const isAboutOpportunity = /opportunity|csm|engagement|outreach|upsell|cross.sell|prospect|pipeline/i.test(query);
     const isAboutRisk = /risk|threat|concern|problem|issue|challenge|warning|negative/i.test(query);
     const isAboutStrategy = /strategy|recommend|suggest|action|next step|what should|how to|approach/i.test(query);
     const isGreeting = /^(hi|hello|hey|good morning|good afternoon|sup|yo)\b/i.test(query.trim());
@@ -108,7 +143,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
       answer = `Hey there! 👋\n\nI'm currently tracking **${count} articles** across **${companies} companies** in your portfolio. Here's what I can help with:\n\n`;
       answer += `- Ask about a specific company: *"What's happening with HSBC?"*\n`;
       answer += `- Get market trends: *"Give me an overview"*\n`;
-      answer += `- Find Sinch opportunities: *"Any engagement opportunities?"*\n`;
+      answer += `- Find opportunities: *"Any engagement opportunities?"*\n`;
       answer += `- Strategic advice: *"What should I focus on this week?"*\n\n`;
       answer += `What would you like to know?`;
     } else if (mentionedCompany) {
@@ -145,22 +180,22 @@ app.post('/api/news/ai/chat', async (req, res) => {
           answer += `\n`;
         }
 
-        // Always provide Sinch CSM angle
-        const sinchKw = ['messaging', 'communication', 'api', 'digital', 'platform', 'app', 'notification', 'customer', 'mobile', 'cloud', 'engagement', 'chatbot', 'ai', 'automation'];
-        const sinchRelevant = companyNews.filter(n => sinchKw.some(kw => ((n.title||'')+(n.description||'')).toLowerCase().includes(kw)));
+        // Provide engagement angle
+        const relevanceKw = ['messaging', 'communication', 'api', 'digital', 'platform', 'app', 'notification', 'customer', 'mobile', 'cloud', 'engagement', 'chatbot', 'ai', 'automation'];
+        const relevantSignals = companyNews.filter(n => relevanceKw.some(kw => ((n.title||'')+(n.description||'')).toLowerCase().includes(kw)));
         
         answer += `---\n\n`;
-        if (sinchRelevant.length > 0) {
-          answer += `### 🎯 Your CSM Angle\n\n`;
-          answer += `I spotted **${sinchRelevant.length} signal${sinchRelevant.length > 1 ? 's' : ''}** that could be relevant for Sinch. `;
+        if (relevantSignals.length > 0) {
+          answer += `### 🎯 Your Engagement Angle\n\n`;
+          answer += `I spotted **${relevantSignals.length} signal${relevantSignals.length > 1 ? 's' : ''}** that could be relevant for outreach. `;
           answer += `${mentionedCompany} appears to be investing in digital/communication infrastructure. `;
           answer += `This could be a good time to:\n\n`;
           answer += `1. **Schedule a check-in** to discuss their evolving communication needs\n`;
-          answer += `2. **Share a case study** about similar companies using Sinch APIs\n`;
-          answer += `3. **Propose a QBR topic** around: *${sinchRelevant[0].title.substring(0, 60)}*\n`;
+          answer += `2. **Share a case study** about similar companies using CPaaS solutions\n`;
+          answer += `3. **Propose a QBR topic** around: *${relevantSignals[0].title.substring(0, 60)}*\n`;
         } else {
           answer += `### 💡 CSM Note\n\n`;
-          answer += `No direct communication/messaging signals this cycle, but stay engaged. Monitor for digital transformation or customer experience initiatives that could open doors for Sinch solutions.`;
+          answer += `No direct communication/messaging signals this cycle, but stay engaged. Monitor for digital transformation or customer experience initiatives that could open doors for engagement.`;
         }
       } else {
         answer = `I don't have recent news about **${mentionedCompany}** in your current view.\n\n`;
@@ -169,14 +204,14 @@ app.post('/api/news/ai/chat', async (req, res) => {
         answer += `- Click Refresh to fetch the latest\n`;
         answer += `- Check if ${mentionedCompany} is in your selected companies filter`;
       }
-    } else if (isAboutSinch) {
-      const sinchKw = ['messaging', 'communication', 'api', 'digital', 'platform', 'notification', 'customer engagement', 'chatbot', 'rcs', 'sms', 'mobile', 'cloud communication', 'omnichannel'];
-      const opportunities = news.filter(n => sinchKw.some(kw => ((n.title||'')+(n.description||'')).toLowerCase().includes(kw)));
+    } else if (isAboutOpportunity) {
+      const engagementKw = ['messaging', 'communication', 'api', 'digital', 'platform', 'notification', 'customer engagement', 'chatbot', 'rcs', 'sms', 'mobile', 'cloud communication', 'omnichannel'];
+      const opportunities = news.filter(n => engagementKw.some(kw => ((n.title||'')+(n.description||'')).toLowerCase().includes(kw)));
       
-      answer = `## 🎯 Sinch Engagement Radar\n\n`;
+      answer = `## 🎯 Engagement Radar\n\n`;
       
       if (opportunities.length > 0) {
-        answer += `Great news — I found **${opportunities.length} signals** across your accounts that align with Sinch's value proposition:\n\n`;
+        answer += `Great news — I found **${opportunities.length} signals** across your accounts that align with communication & engagement opportunities:\n\n`;
         const byCompany = {};
         opportunities.forEach(n => { if (!byCompany[n.company]) byCompany[n.company] = []; byCompany[n.company].push(n); });
         
@@ -229,9 +264,9 @@ app.post('/api/news/ai/chat', async (req, res) => {
       if (topCat[0] === 'Strategic Insights') {
         answer += `This suggests significant corporate activity — mergers, partnerships, and expansions are in play. Great time for proactive CSM outreach.`;
       } else if (topCat[0] === 'Technology') {
-        answer += `Tech-heavy cycles often signal digital transformation budgets being deployed — a prime opportunity for Sinch API conversations.`;
+        answer += `Tech-heavy cycles often signal digital transformation budgets being deployed — a prime opportunity for CPaaS conversations.`;
       } else {
-        answer += `Keep monitoring for strategic signals that could translate into Sinch engagement opportunities.`;
+        answer += `Keep monitoring for strategic signals that could translate into engagement opportunities.`;
       }
     } else if (isAboutRisk) {
       const riskKw = ['layoff', 'cut', 'decline', 'loss', 'fine', 'penalty', 'lawsuit', 'investigation', 'breach', 'hack', 'downturn', 'restructur', 'close', 'shut'];
@@ -263,7 +298,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
       answer += `\n### Recommended Actions\n\n`;
       answer += `1. **Immediate:** Schedule touchpoints with accounts showing expansion/partnership signals\n`;
       answer += `2. **This week:** Prepare QBR materials incorporating the latest strategic moves\n`;
-      answer += `3. **Ongoing:** Monitor for digital transformation announcements — these are your strongest Sinch entry points\n`;
+      answer += `3. **Ongoing:** Monitor for digital transformation announcements — these are your strongest entry points\n`;
       answer += `4. **Proactive:** Share relevant industry insights with your champions to stay top-of-mind\n\n`;
       answer += `*Pro tip: Click "Generate Strategy Report" for a detailed, per-account action plan you can share with your team.*`;
     } else {
@@ -294,7 +329,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
         answer += `**Here's what might help:**\n\n`;
         answer += `- Try a company name: *"Tell me about Grab"*\n`;
         answer += `- Ask about trends: *"What's the market overview?"*\n`;
-        answer += `- Find opportunities: *"Any Sinch engagement signals?"*\n`;
+        answer += `- Find opportunities: *"Any engagement signals?"*\n`;
         answer += `- Get strategic advice: *"What should I focus on?"*\n`;
         answer += `- Expand time range to 1 week for more data\n\n`;
         answer += `I work best when you ask about the 18 companies I track or about market patterns I can detect from the news.`;
