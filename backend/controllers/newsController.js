@@ -36,7 +36,8 @@ async function getAllNews(req, res) {
 }
 
 function getCompanies(req, res) {
-  res.json({ success: true, data: getAvailableCompanies() });
+  const { CATEGORIES } = require('../config/sources');
+  res.json({ success: true, data: getAvailableCompanies(), categories: CATEGORIES });
 }
 
 async function getSourcesList(req, res) {

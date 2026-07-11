@@ -6,6 +6,7 @@ const compression = require('compression');
 const newsRoutes = require('./routes/news');
 const { aggregateAllNews, getNews, getNewsCount } = require('./services/newsAggregator');
 const { generateHeuristicReport } = require('./services/strategyEngine');
+const { initIPOTable, getIPOs, getIPOStats } = require('./services/ipoTracker');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -112,7 +113,7 @@ app.post('/api/news/ai/strategy', async (req, res) => {
 app.post('/api/news/ai/chat', async (req, res) => {
   try {
     const { query, context } = req.body;
-    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your MarketFeed assistant. Ask me about any of the 18 companies I track, market trends, or engagement opportunities.' });
+    if (!query) return res.json({ success: true, answer: 'Hi! I\'m your MarketFeed assistant. Ask me about any of the 40+ companies I track, market trends, or engagement opportunities.' });
 
     const q = query.toLowerCase();
     const news = context || [];
@@ -123,7 +124,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
     let mentionedCompany = companyNames.find(c => q.includes(c.toLowerCase()));
     if (!mentionedCompany) {
       // Try partial/alias matching
-      const aliases = { 'dbs': 'DBS', 'hsbc': 'HSBC', 'grab': 'Grab', 'temu': 'Temu', 'didi': 'Didi', 'gojek': 'Gojek', 'citi': 'Citigroup', 'citibank': 'Citigroup', 'alibaba': 'Alibaba', 'ali': 'Alibaba', 'tiktok': 'ByteDance', 'bytedance': 'ByteDance', 'tencent': 'Tencent', 'wechat': 'Tencent', 'binance': 'Binance', 'crypto': 'Binance', 'cathay': 'Cathay Pacific', 'vodafone': 'Vodafone', 'stanchart': 'Standard Chartered', 'sc': 'Standard Chartered', 'boc': 'Bank of China', 'shopback': 'ShopBack', 'aeon': 'Aeon Credit', 'ctrip': 'Ctrip', 'trip.com': 'Ctrip' };
+      const aliases = { 'dbs': 'DBS', 'hsbc': 'HSBC', 'grab': 'Grab', 'temu': 'Temu', 'didi': 'Didi', 'gojek': 'Gojek', 'citi': 'Citigroup', 'citibank': 'Citigroup', 'alibaba': 'Alibaba', 'ali': 'Alibaba', 'tiktok': 'ByteDance', 'bytedance': 'ByteDance', 'tencent': 'Tencent', 'wechat': 'Tencent', 'binance': 'Binance', 'crypto': 'Binance', 'cathay': 'Cathay Pacific', 'vodafone': 'Vodafone', 'stanchart': 'Standard Chartered', 'sc': 'Standard Chartered', 'boc': 'Bank of China', 'shopback': 'ShopBack', 'aeon': 'Aeon Credit', 'ctrip': 'Ctrip', 'trip.com': 'Ctrip', 'tesla': 'Tesla', 'tsla': 'Tesla', 'helios': 'Helios Energy', 'coinbase': 'Coinbase', 'apple': 'Apple', 'iphone': 'Apple', 'alphabet': 'Alphabet', 'google': 'Alphabet', 'nvidia': 'NVIDIA', 'nvda': 'NVIDIA', 'databricks': 'Databricks', 'netflix': 'Netflix', 'meta': 'Meta', 'facebook': 'Meta', 'instagram': 'Meta', 'spacex': 'SpaceX', 'stripe': 'Stripe', 'microsoft': 'Microsoft', 'msft': 'Microsoft', 'amazon': 'Amazon', 'aws': 'Amazon', 'shein': 'Shein', 'samsung': 'Samsung', 'walmart': 'Walmart', 'openai': 'OpenAI', 'chatgpt': 'OpenAI', 'gpt': 'OpenAI', 'sf express': 'SF Express', '顺丰': 'SF Express', 'catl': 'CATL', '宁德时代': 'CATL', 'jpmorgan': 'JPMorgan', 'jpm': 'JPMorgan', 'tsmc': 'TSMC', 'anthropic': 'Anthropic', 'claude': 'Anthropic', 'singtel': 'Singtel', 'starhub': 'StarHub' };
       const matchedAlias = Object.keys(aliases).find(a => q.includes(a));
       if (matchedAlias) mentionedCompany = aliases[matchedAlias];
     }
@@ -332,7 +333,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
         answer += `- Find opportunities: *"Any engagement signals?"*\n`;
         answer += `- Get strategic advice: *"What should I focus on?"*\n`;
         answer += `- Expand time range to 1 week for more data\n\n`;
-        answer += `I work best when you ask about the 18 companies I track or about market patterns I can detect from the news.`;
+        answer += `I work best when you ask about the companies I track or about market patterns I can detect from the news.`;
       }
     }
 
@@ -340,6 +341,58 @@ app.post('/api/news/ai/chat', async (req, res) => {
   } catch (error) {
     console.error('[AI Chat]', error.message);
     res.json({ success: true, answer: 'Sorry, I hit a snag processing that. Could you rephrase your question?' });
+  }
+});
+
+// ==================== EMAIL SUBSCRIPTION ====================
+const { initSubscriptionTable, subscribe, unsubscribe, getActiveSubscriptions, generateStrategySuggestions } = require('./services/emailService');
+initSubscriptionTable().catch(e => console.error('[Email] Table init error:', e.message));
+
+app.post('/api/subscribe', async (req, res) => {
+  try {
+    const { email, companies, frequency } = req.body;
+    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      return res.status(400).json({ success: false, error: 'Valid email required' });
+    }
+    const result = await subscribe({ email, companies: companies || [], frequency: frequency || 'daily' });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/unsubscribe', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ success: false, error: 'Token required' });
+  const success = await unsubscribe(token);
+  if (success) {
+    res.send('<html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2>Unsubscribed</h2><p>You have been successfully unsubscribed from MarketFeed digests.</p></body></html>');
+  } else {
+    res.status(404).send('<html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2>Not Found</h2><p>Subscription not found or already unsubscribed.</p></body></html>');
+  }
+});
+
+app.get('/api/subscriptions', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+  const rows = await getActiveSubscriptions('daily');
+  const weekly = await getActiveSubscriptions('weekly');
+  const monthly = await getActiveSubscriptions('monthly');
+  const all = [...rows, ...weekly, ...monthly].filter(r => r.email === email);
+  res.json({ success: true, data: all.length > 0 ? all[0] : null });
+});
+
+// ==================== IPO TRACKER ====================
+initIPOTable().catch(e => console.error('[IPO] Table init error:', e.message));
+
+app.get('/api/ipo', async (req, res) => {
+  try {
+    const { window = '6months', status } = req.query;
+    const ipos = await getIPOs({ window, status });
+    const stats = await getIPOStats();
+    res.json({ success: true, data: ipos, stats });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

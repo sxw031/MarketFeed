@@ -170,7 +170,31 @@ const LINKEDIN_SLUGS = {
   'Citigroup': 'citi',
   'Binance': 'binance',
   'ShopBack': 'shopback',
-  'Aeon Credit': 'aeon-credit-service'
+  'Aeon Credit': 'aeon-credit-service',
+  'Tesla': 'tesla-motors',
+  'Helios Energy': 'helios-energy',
+  'Coinbase': 'coinbase',
+  'Apple': 'apple',
+  'Alphabet': 'google',
+  'NVIDIA': 'nvidia',
+  'Databricks': 'databricks',
+  'Netflix': 'netflix',
+  'Meta': 'meta',
+  'SpaceX': 'spacex',
+  'Stripe': 'stripe',
+  'Microsoft': 'microsoft',
+  'Amazon': 'amazon',
+  'Shein': 'shein',
+  'Samsung': 'samsung-electronics',
+  'Walmart': 'walmart',
+  'OpenAI': 'openai',
+  'SF Express': 'sf-express',
+  'CATL': 'catl',
+  'JPMorgan': 'jpmorgan',
+  'TSMC': 'tsmc',
+  'Anthropic': 'anthropic',
+  'Singtel': 'singtel',
+  'StarHub': 'starhub'
 };
 
 // --- Source 3: LinkedIn News (multi-strategy search) ---
@@ -342,6 +366,138 @@ const COMPANY_OFFICIAL_PATHS = {
     domain: 'aeoncredit.com.my',
     paths: ['news-announcements', 'investor-relations', 'about-us'],
     searchTerms: ['announcement', 'financial results', 'service']
+  },
+  'Tesla': {
+    domain: 'tesla.com',
+    paths: ['blog', 'updates'],
+    altDomains: ['ir.tesla.com'],
+    searchTerms: ['announcement', 'delivery', 'earnings', 'product']
+  },
+  'Helios Energy': {
+    domain: 'heliosenergy.com',
+    paths: ['news', 'projects', 'about'],
+    searchTerms: ['announcement', 'project', 'energy'],
+    useGenericSearch: true
+  },
+  'Coinbase': {
+    domain: 'coinbase.com',
+    paths: ['blog', 'blog/company-news', 'press'],
+    altDomains: ['blog.coinbase.com'],
+    searchTerms: ['announcement', 'listing', 'update', 'policy']
+  },
+  'Apple': {
+    domain: 'apple.com',
+    paths: ['newsroom', 'newsroom/topics/apple-intelligence'],
+    searchTerms: ['announcement', 'launch', 'update', 'press release']
+  },
+  'Alphabet': {
+    domain: 'blog.google',
+    paths: ['', 'technology', 'products'],
+    altDomains: ['abc.xyz/investor', 'ai.google/discover'],
+    searchTerms: ['announcement', 'AI', 'earnings', 'launch']
+  },
+  'NVIDIA': {
+    domain: 'nvidia.com',
+    paths: ['en-us/about-nvidia/press-releases', 'blog'],
+    altDomains: ['nvidianews.nvidia.com'],
+    searchTerms: ['announcement', 'GPU', 'AI', 'earnings']
+  },
+  'Databricks': {
+    domain: 'databricks.com',
+    paths: ['blog', 'company/newsroom', 'company/press-releases'],
+    searchTerms: ['announcement', 'launch', 'partnership', 'AI']
+  },
+  'Netflix': {
+    domain: 'about.netflix.com',
+    paths: ['news', 'en/news'],
+    altDomains: ['ir.netflix.net'],
+    searchTerms: ['announcement', 'earnings', 'content', 'subscriber']
+  },
+  'Meta': {
+    domain: 'about.fb.com',
+    paths: ['news', 'company-info'],
+    altDomains: ['ai.meta.com/blog', 'engineering.fb.com'],
+    searchTerms: ['announcement', 'AI', 'metaverse', 'earnings']
+  },
+  'SpaceX': {
+    domain: 'spacex.com',
+    paths: ['updates', 'launches'],
+    searchTerms: ['launch', 'mission', 'starship', 'announcement'],
+    useGenericSearch: true
+  },
+  'Stripe': {
+    domain: 'stripe.com',
+    paths: ['newsroom', 'blog', 'blog/engineering'],
+    searchTerms: ['announcement', 'launch', 'partnership', 'payments']
+  },
+  'Microsoft': {
+    domain: 'microsoft.com',
+    paths: ['en-us/microsoft-365/blog', 'en-us/ai/blog'],
+    altDomains: ['news.microsoft.com', 'blogs.microsoft.com'],
+    searchTerms: ['announcement', 'AI', 'Azure', 'earnings']
+  },
+  'Amazon': {
+    domain: 'aboutamazon.com',
+    paths: ['news', 'news/aws'],
+    altDomains: ['aws.amazon.com/blogs/aws', 'press.aboutamazon.com'],
+    searchTerms: ['announcement', 'AWS', 'launch', 'earnings']
+  },
+  'Shein': {
+    domain: 'sheingroup.com',
+    paths: ['newsroom', 'sustainability'],
+    searchTerms: ['announcement', 'expansion', 'IPO', 'partnership']
+  },
+  'Samsung': {
+    domain: 'samsung.com',
+    paths: ['global/galaxy/news', 'semiconductor/newsroom'],
+    altDomains: ['news.samsung.com'],
+    searchTerms: ['announcement', 'launch', 'Galaxy', 'chip']
+  },
+  'Walmart': {
+    domain: 'corporate.walmart.com',
+    paths: ['newsroom', 'purpose', 'about'],
+    searchTerms: ['announcement', 'earnings', 'expansion', 'technology']
+  },
+  'OpenAI': {
+    domain: 'openai.com',
+    paths: ['blog', 'research', 'index/announcements'],
+    searchTerms: ['announcement', 'GPT', 'model', 'safety', 'launch']
+  },
+  'SF Express': {
+    domain: 'sf-express.com',
+    paths: ['en/news', 'en/about'],
+    altDomains: ['ir.sf-express.com'],
+    searchTerms: ['announcement', 'logistics', 'earnings', 'expansion']
+  },
+  'CATL': {
+    domain: 'catl.com',
+    paths: ['en/news', 'en/about'],
+    searchTerms: ['announcement', 'battery', 'partnership', 'factory']
+  },
+  'JPMorgan': {
+    domain: 'jpmorganchase.com',
+    paths: ['news-stories', 'ir'],
+    searchTerms: ['press release', 'announcement', 'earnings', 'banking']
+  },
+  'TSMC': {
+    domain: 'tsmc.com',
+    paths: ['english/news-events', 'english/investorRelations'],
+    searchTerms: ['announcement', 'earnings', 'technology', 'fab']
+  },
+  'Anthropic': {
+    domain: 'anthropic.com',
+    paths: ['news', 'research', 'index/news'],
+    searchTerms: ['announcement', 'Claude', 'safety', 'model']
+  },
+  'Singtel': {
+    domain: 'singtel.com',
+    paths: ['about-us/media-centre', 'about-us/news-releases'],
+    searchTerms: ['announcement', 'partnership', '5G', 'digital']
+  },
+  'StarHub': {
+    domain: 'starhub.com',
+    paths: ['about-us/newsroom', 'about-us/investor-relations'],
+    searchTerms: ['announcement', 'partnership', 'launch', '5G']
   }
 };
 

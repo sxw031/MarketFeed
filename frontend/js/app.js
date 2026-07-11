@@ -13,23 +13,47 @@ let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
 // Logo URLs - reliable sources for each company
 const LOGO_MAP = {
   'HSBC': 'https://logo.clearbit.com/hsbc.com',
-  'Grab': 'https://logo.clearbit.com/grab.com',
-  'Vodafone': 'https://logo.clearbit.com/vodafone.com',
-  'Cathay Pacific': 'https://logo.clearbit.com/cathaypacific.com',
-  'Alibaba': 'https://logo.clearbit.com/alibaba.com',
-  'Standard Chartered': 'https://logo.clearbit.com/sc.com',
-  'Temu': 'https://logo.clearbit.com/temu.com',
-  'Ctrip': 'https://logo.clearbit.com/trip.com',
-  'Didi': 'https://logo.clearbit.com/didiglobal.com',
   'DBS': 'https://logo.clearbit.com/dbs.com',
-  'Tencent': 'https://logo.clearbit.com/tencent.com',
   'Bank of China': '/img/bankofchina.png',
-  'ByteDance': '/img/bytedance.png',
-  'Gojek': 'https://logo.clearbit.com/gojek.com',
   'Citigroup': 'https://logo.clearbit.com/citigroup.com',
+  'Standard Chartered': 'https://logo.clearbit.com/sc.com',
+  'JPMorgan Chase': 'https://logo.clearbit.com/jpmorganchase.com',
+  'Aeon Credit': 'https://logo.clearbit.com/aeoncredit.com.my',
   'Binance': 'https://logo.clearbit.com/binance.com',
+  'Coinbase': 'https://logo.clearbit.com/coinbase.com',
+  'Stripe': 'https://logo.clearbit.com/stripe.com',
+  'Apple': 'https://logo.clearbit.com/apple.com',
+  'Alphabet (Google)': 'https://logo.clearbit.com/google.com',
+  'Microsoft': 'https://logo.clearbit.com/microsoft.com',
+  'Amazon': 'https://logo.clearbit.com/amazon.com',
+  'Meta': 'https://logo.clearbit.com/meta.com',
+  'Nvidia': 'https://logo.clearbit.com/nvidia.com',
+  'Samsung': 'https://logo.clearbit.com/samsung.com',
+  'TSMC': 'https://logo.clearbit.com/tsmc.com',
+  'OpenAI': 'https://logo.clearbit.com/openai.com',
+  'Anthropic': 'https://logo.clearbit.com/anthropic.com',
+  'Databricks': 'https://logo.clearbit.com/databricks.com',
+  'ByteDance': '/img/bytedance.png',
+  'Alibaba': 'https://logo.clearbit.com/alibaba.com',
+  'Temu': 'https://logo.clearbit.com/temu.com',
+  'Shein': 'https://logo.clearbit.com/shein.com',
   'ShopBack': 'https://logo.clearbit.com/shopback.com',
-  'Aeon Credit': 'https://logo.clearbit.com/aeoncredit.com.my'
+  'Walmart': 'https://logo.clearbit.com/walmart.com',
+  'Grab': 'https://logo.clearbit.com/grab.com',
+  'Didi': 'https://logo.clearbit.com/didiglobal.com',
+  'Gojek': 'https://logo.clearbit.com/gojek.com',
+  'Cathay Pacific': 'https://logo.clearbit.com/cathaypacific.com',
+  'Ctrip': 'https://logo.clearbit.com/trip.com',
+  'Vodafone': 'https://logo.clearbit.com/vodafone.com',
+  'Singtel': 'https://logo.clearbit.com/singtel.com',
+  'StarHub': 'https://logo.clearbit.com/starhub.com',
+  'Netflix': 'https://logo.clearbit.com/netflix.com',
+  'Tencent': 'https://logo.clearbit.com/tencent.com',
+  'Tesla': 'https://logo.clearbit.com/tesla.com',
+  'Helios Energy': 'https://logo.clearbit.com/heliosenergy.com',
+  'CATL (宁德时代)': 'https://logo.clearbit.com/catl.com',
+  'SpaceX': 'https://logo.clearbit.com/spacex.com',
+  'SF Express (顺丰)': 'https://logo.clearbit.com/sf-express.com',
 };
 
 // Relevance keywords for sorting
@@ -61,15 +85,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==================== DATA LOADING ====================
+let availableCategories = [];
+let activeCategoryFilter = 'all';
+
 async function loadCompanies() {
   try {
     const res = await fetch(`${API_BASE}/companies`);
     const data = await res.json();
     if (data.success) {
       availableCompanies = data.data;
+      availableCategories = data.categories || [];
+      renderCategoryTabs();
       renderCompanyGrid();
     }
   } catch (e) { console.error('loadCompanies:', e); }
+}
+
+function renderCategoryTabs() {
+  const container = document.getElementById('categoryTabs');
+  if (!container || !availableCategories.length) return;
+  container.innerHTML = availableCategories.map(cat =>
+    `<button class="btn-category ${cat.id === activeCategoryFilter ? 'active' : ''}" data-category="${cat.id}">${cat.icon} ${cat.name}</button>`
+  ).join('');
+  container.querySelectorAll('.btn-category').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategoryFilter = btn.dataset.category;
+      container.querySelectorAll('.btn-category').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCompanyGrid();
+    });
+  });
 }
 
 async function loadNews(silent = false) {
@@ -748,7 +793,10 @@ function renderCompanyGrid() {
   const container = document.getElementById('companyFilters');
   if (!container) return;
   container.innerHTML = '';
-  availableCompanies.forEach(c => {
+  const filtered = activeCategoryFilter === 'all'
+    ? availableCompanies
+    : availableCompanies.filter(c => c.category === activeCategoryFilter);
+  filtered.forEach(c => {
     const el = document.createElement('div');
     el.className = `company-item ${selectedCompanies.includes(c.name) ? 'selected' : ''}`;
     el.dataset.company = c.name;
@@ -756,6 +804,8 @@ function renderCompanyGrid() {
     el.addEventListener('click', () => el.classList.toggle('selected'));
     container.appendChild(el);
   });
+  const countLabel = document.getElementById('companyCountLabel');
+  if (countLabel) countLabel.textContent = `${filtered.length} companies`;
   updateSelectionLabel();
 }
 
@@ -937,3 +987,199 @@ function esc(text) {
   d.textContent = text;
   return d.innerHTML;
 }
+
+// ==================== EMAIL SUBSCRIPTION ====================
+(function initSubscription() {
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const modal = document.getElementById('subscribeModal');
+  const closeBtn = document.getElementById('closeSubscribeModal');
+  const submitBtn = document.getElementById('submitSubscription');
+  const statusDiv = document.getElementById('subStatus');
+  let subFrequency = 'daily';
+  let subCompanies = [];
+
+  if (!subscribeBtn || !modal) return;
+
+  subscribeBtn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+    renderSubCompanyGrid();
+  });
+
+  closeBtn.addEventListener('click', () => modal.style.display = 'none');
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+
+  // Frequency buttons
+  modal.querySelectorAll('.btn-freq').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.querySelectorAll('.btn-freq').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      subFrequency = btn.dataset.freq;
+    });
+  });
+
+  function renderSubCompanyGrid() {
+    const grid = document.getElementById('subCompanyGrid');
+    if (!grid) return;
+    grid.innerHTML = availableCompanies.map(c =>
+      `<div class="sub-company-chip ${subCompanies.includes(c.name) ? 'selected' : ''}" data-name="${c.name}">
+        <img src="${getLogoUrl(c.name)}" alt="" onerror="this.style.display='none'">
+        <span>${c.name}</span>
+      </div>`
+    ).join('');
+    grid.querySelectorAll('.sub-company-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        const name = chip.dataset.name;
+        if (chip.classList.contains('selected')) {
+          if (!subCompanies.includes(name)) subCompanies.push(name);
+        } else {
+          subCompanies = subCompanies.filter(n => n !== name);
+        }
+      });
+    });
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const email = document.getElementById('subEmail').value.trim();
+    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      showSubStatus('Please enter a valid email address.', 'error');
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subscribing...';
+    try {
+      const res = await fetch(`${API_BASE.replace('/news', '')}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, companies: subCompanies, frequency: subFrequency })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showSubStatus(`Subscribed! You'll receive ${subFrequency} digests at ${email}.`, 'success');
+        setTimeout(() => modal.style.display = 'none', 3000);
+      } else {
+        showSubStatus(data.error || 'Subscription failed.', 'error');
+      }
+    } catch (e) {
+      showSubStatus('Network error. Please try again.', 'error');
+    }
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Subscribe';
+  });
+
+  function showSubStatus(msg, type) {
+    statusDiv.style.display = 'block';
+    statusDiv.className = `sub-status ${type}`;
+    statusDiv.textContent = msg;
+    setTimeout(() => statusDiv.style.display = 'none', 5000);
+  }
+})();
+
+// ==================== IPO TRACKER ====================
+(function initIPOTracker() {
+  const ipoSection = document.getElementById('ipoSection');
+  const ipoList = document.getElementById('ipoList');
+  const ipoStats = document.getElementById('ipoStats');
+  const tabNews = document.getElementById('tabNewsFeed');
+  const tabIPO = document.getElementById('tabIPO');
+  const mainContent = document.querySelector('.main-content');
+  const filterBar = document.querySelector('.filter-bar');
+
+  if (!tabIPO || !ipoSection) return;
+
+  let ipoWindow = '6months';
+  let ipoStatus = 'all';
+
+  // Tab switching
+  tabNews.addEventListener('click', () => {
+    tabNews.classList.add('active');
+    tabIPO.classList.remove('active');
+    mainContent.style.display = '';
+    filterBar.style.display = '';
+    ipoSection.style.display = 'none';
+  });
+
+  tabIPO.addEventListener('click', () => {
+    tabIPO.classList.add('active');
+    tabNews.classList.remove('active');
+    mainContent.style.display = 'none';
+    filterBar.style.display = 'none';
+    ipoSection.style.display = 'block';
+    loadIPOData();
+  });
+
+  // Time window filters
+  ipoSection.querySelectorAll('.btn-ipo-time').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ipoSection.querySelectorAll('.btn-ipo-time').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ipoWindow = btn.dataset.window;
+      loadIPOData();
+    });
+  });
+
+  // Status filters
+  ipoSection.querySelectorAll('.btn-ipo-status').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ipoSection.querySelectorAll('.btn-ipo-status').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ipoStatus = btn.dataset.status;
+      loadIPOData();
+    });
+  });
+
+  async function loadIPOData() {
+    ipoList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading IPO data...</p></div>';
+    try {
+      const res = await fetch(`${API_BASE.replace('/news', '')}/ipo?window=${ipoWindow}&status=${ipoStatus}`);
+      const data = await res.json();
+      if (data.success) {
+        renderIPOStats(data.stats);
+        renderIPOList(data.data);
+      }
+    } catch (e) {
+      ipoList.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Failed to load IPO data.</p>';
+    }
+  }
+
+  function renderIPOStats(stats) {
+    ipoStats.innerHTML = `
+      <div class="ipo-stat-cards">
+        <div class="ipo-stat-card"><div class="stat-number">${stats.total}</div><div class="stat-label">Total Tracked</div></div>
+        <div class="ipo-stat-card filed"><div class="stat-number">${stats.filed}</div><div class="stat-label">Filed</div></div>
+        <div class="ipo-stat-card preparing"><div class="stat-number">${stats.preparing}</div><div class="stat-label">Preparing</div></div>
+        <div class="ipo-stat-card rumored"><div class="stat-number">${stats.rumored}</div><div class="stat-label">Rumored</div></div>
+      </div>`;
+  }
+
+  function renderIPOList(ipos) {
+    if (!ipos.length) {
+      ipoList.innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:2.5rem;margin-bottom:1rem;">🚀</div><h3>No IPOs in this window</h3><p>Try expanding the time range.</p></div>';
+      return;
+    }
+    ipoList.innerHTML = ipos.map(ipo => {
+      const statusClass = ipo.status === 'filed' ? 'status-filed' : ipo.status === 'preparing' ? 'status-preparing' : 'status-rumored';
+      const expectedDate = new Date(ipo.expected_date);
+      const daysUntil = Math.ceil((expectedDate - new Date()) / 86400000);
+      const timeLabel = daysUntil < 0 ? 'Overdue' : daysUntil < 7 ? `${daysUntil}d away` : daysUntil < 30 ? `${Math.ceil(daysUntil/7)}w away` : `${Math.ceil(daysUntil/30)}mo away`;
+      return `
+      <div class="ipo-card">
+        <div class="ipo-card-header">
+          <div class="ipo-company-info">
+            <h3>${ipo.company_name}</h3>
+            <span class="ipo-ticker">${ipo.ticker || 'TBD'}</span>
+          </div>
+          <span class="ipo-status-badge ${statusClass}">${ipo.status}</span>
+        </div>
+        <p class="ipo-description">${ipo.description || ''}</p>
+        <div class="ipo-meta">
+          <div class="ipo-meta-item"><i class="fas fa-industry"></i> ${ipo.industry}</div>
+          <div class="ipo-meta-item"><i class="fas fa-exchange-alt"></i> ${ipo.exchange}</div>
+          <div class="ipo-meta-item"><i class="fas fa-dollar-sign"></i> ${ipo.valuation}</div>
+          <div class="ipo-meta-item"><i class="fas fa-calendar"></i> ${expectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+          <div class="ipo-meta-item ipo-countdown"><i class="fas fa-clock"></i> ${timeLabel}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+})();
