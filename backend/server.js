@@ -51,14 +51,20 @@ app.use((req, res, next) => {
 // Cleanup rate limit map every 5 minutes
 setInterval(() => { const now = Date.now(); for (const [k, v] of rateLimitMap) { if (now - v.start > 120000) rateLimitMap.delete(k); } }, 300000);
 
-// Static files with aggressive caching for assets
+// Static files. HTML/CSS/JS must always revalidate so bug fixes and UI
+// changes reach users immediately after a deploy instead of being served
+// stale from the browser cache for up to a day. Images can still be cached
+// aggressively since their content rarely changes.
 app.use(express.static(path.join(__dirname, '../frontend'), {
   maxAge: '1h',
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    // Cache images/css/js longer
-    if (filePath.match(/\.(png|jpg|svg|ico|css|js)$/)) {
+    if (filePath.match(/\.(html)$/)) {
+      res.setHeader('Cache-Control', 'no-cache'); // always revalidate with ETag
+    } else if (filePath.match(/\.(css|js)$/)) {
+      res.setHeader('Cache-Control', 'no-cache'); // always revalidate with ETag
+    } else if (filePath.match(/\.(png|jpg|svg|ico)$/)) {
       res.setHeader('Cache-Control', 'public, max-age=86400'); // 24h
     }
   }
