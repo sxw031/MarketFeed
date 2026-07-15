@@ -19,7 +19,7 @@ function decodeHtmlEntities(text = '') {
 function cleanText(input = '') {
   return decodeHtmlEntities(
     input
-      .replace(/<script[\s\S]*?<\/script\s*>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style\s*>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
@@ -43,14 +43,27 @@ function extractMetaDescription(html = '') {
 }
 
 function extractJsonLdText(html = '') {
-  const scripts = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script\s*>/gi) || [];
   const chunks = [];
+  const lowerHtml = html.toLowerCase();
+  let cursor = 0;
 
-  for (const script of scripts) {
-    const jsonMatch = script.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-    if (!jsonMatch) continue;
+  while (cursor < html.length) {
+    const start = lowerHtml.indexOf('<script', cursor);
+    if (start === -1) break;
+    const openEnd = html.indexOf('>', start);
+    if (openEnd === -1) break;
+
+    const openTag = lowerHtml.slice(start, openEnd + 1);
+    const closeStart = lowerHtml.indexOf('</script', openEnd + 1);
+    if (closeStart === -1) break;
+    const closeEnd = html.indexOf('>', closeStart);
+    cursor = closeEnd === -1 ? closeStart + 8 : closeEnd + 1;
+
+    if (!openTag.includes('application/ld+json')) continue;
+    const jsonPayload = html.slice(openEnd + 1, closeStart).trim();
+    if (!jsonPayload) continue;
     try {
-      const parsed = JSON.parse(jsonMatch[1].trim());
+      const parsed = JSON.parse(jsonPayload);
       const items = Array.isArray(parsed) ? parsed : [parsed];
       items.forEach(item => {
         if (!item || typeof item !== 'object') return;
