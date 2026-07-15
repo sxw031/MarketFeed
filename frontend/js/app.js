@@ -6,11 +6,14 @@ let availableCompanies = [];
 let selectedCompanies = JSON.parse(localStorage.getItem(SELECTED_COMPANIES_KEY) || '[]');
 let activeTimeRange = null;
 let activeTimeRangeKey = '24h';
+let activeTimeRangeBounds = null;
 let currentSort = 'latest'; // 'latest' or 'relevance'
 let pollingTimer = null;
 let currentPage = 1;
 let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
 let aiChatHistory = []; // multi-turn AI chat memory: [{role, content}, ...]
+let activeNewsRequestId = 0;
+let activeNewsAbortController = null;
 const TIME_RANGE_WINDOWS = {
   '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
@@ -90,7 +93,8 @@ const RELEVANCE_KEYWORDS = [
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', async () => {
   // Default: show last 24 hours
-  activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
+  activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
+  activeTimeRange = activeTimeRangeBounds.startDate;
 
   // Set up event listeners immediately so all buttons work before data loads
   setupEventListeners();
@@ -141,12 +145,17 @@ function renderCategoryTabs() {
 
 async function loadNews(silent = false) {
   if (!silent) { showLoading(true); currentPage = 1; }
+  const requestId = ++activeNewsRequestId;
+  if (activeNewsAbortController) activeNewsAbortController.abort();
+  activeNewsAbortController = new AbortController();
   try {
     let url = `${API_BASE}?limit=300`;
-    const { startDate, endDate } = getTimeRangeBounds(activeTimeRangeKey);
+    activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
+    const { startDate, endDate } = activeTimeRangeBounds;
     activeTimeRange = startDate;
     url += `&startDate=${encodeURIComponent(startDate)}`;
     url += `&endDate=${encodeURIComponent(endDate)}`;
+    url += `&_ts=${Date.now()}`;
 
     const category = document.getElementById('categoryFilter').value;
     const source = document.getElementById('sourceFilter').value;
@@ -157,23 +166,46 @@ async function loadNews(silent = false) {
     if (selectedCompanies.length > 0) url += `&companies=${selectedCompanies.join(',')}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: activeNewsAbortController.signal, cache: 'no-store' });
     const data = await res.json();
+    if (requestId !== activeNewsRequestId) return;
     if (data.success) {
-      allNews = applyActiveTimeFilter(data.data || []);
+      allNews = applyActiveTimeFilter(data.data || [], activeTimeRangeBounds);
+      updateResultsSummary(allNews.length);
       sortAndRender();
+    } else {
+      allNews = [];
+      updateResultsSummary(0);
+      renderNews();
     }
   } catch (e) {
+    if (e.name === 'AbortError') return;
     console.error('loadNews:', e);
+    allNews = [];
+    updateResultsSummary(0);
     if (!silent) showEmptyState(true);
   } finally {
-    if (!silent) showLoading(false);
+    if (requestId === activeNewsRequestId && !silent) showLoading(false);
   }
 }
 
 function getTimeRangeStart(rangeKey) {
   const { startDate } = getTimeRangeBounds(rangeKey);
   return startDate;
+}
+
+function getTimeRangeLabel(rangeKey) {
+  const labels = {
+    '6h': 'last 6 hours',
+    '24h': 'last 24 hours',
+    '72h': 'last 72 hours',
+    '1w': 'last 1 week',
+    '1m': 'last 1 month'
+  };
+  const normalizedRangeKey = TIME_RANGE_ALIASES[rangeKey] || rangeKey;
+  if (labels[normalizedRangeKey]) return labels[normalizedRangeKey];
+  if (isYearRangeKey(normalizedRangeKey)) return normalizedRangeKey;
+  return 'last 24 hours';
 }
 
 function getTimeRangeBounds(rangeKey) {
@@ -214,9 +246,9 @@ function parseArticleDate(input) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function applyActiveTimeFilter(news) {
+function applyActiveTimeFilter(news, bounds = activeTimeRangeBounds || getTimeRangeBounds(activeTimeRangeKey)) {
   if (!Array.isArray(news) || !activeTimeRangeKey) return news || [];
-  const { startDate, endDate } = getTimeRangeBounds(activeTimeRangeKey);
+  const { startDate, endDate } = bounds;
   const startTs = Date.parse(startDate);
   const endTs = Date.parse(endDate);
 
@@ -226,6 +258,13 @@ function applyActiveTimeFilter(news) {
     const ts = d.getTime();
     return ts >= startTs && ts <= endTs;
   });
+}
+
+function updateResultsSummary(totalItems = 0) {
+  const summary = document.getElementById('resultsSummary');
+  if (!summary) return;
+  const itemLabel = totalItems === 1 ? 'article' : 'articles';
+  summary.textContent = `Showing ${totalItems} ${itemLabel} from ${getTimeRangeLabel(activeTimeRangeKey)}.`;
 }
 
 // ==================== SORTING ====================
@@ -645,7 +684,8 @@ function setupEventListeners() {
       activeTimeRangeKey = isKnownRange ? normalizedRange : '24h';
       document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
+      activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
+      activeTimeRange = activeTimeRangeBounds.startDate;
       loadNews();
       // Yearly buttons also restore the Major Events report for that year
       if (isYear) showYearlySummary(Number(range));
@@ -665,7 +705,8 @@ function setupEventListeners() {
     if (btn24h) btn24h.classList.add('active');
     selectedCompanies = [];
     activeTimeRangeKey = '24h';
-    activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
+    activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
+    activeTimeRange = activeTimeRangeBounds.startDate;
     currentSort = 'latest';
     document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
     const latestBtn = document.querySelector('.btn-sort[data-sort="latest"]');
@@ -1215,9 +1256,11 @@ function showEmptyState(show) {
 
 function formatRelativeTime(str) {
   if (!str) return '';
-  let dateStr = str;
-  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-    dateStr = dateStr.replace(' ', 'T') + 'Z';
+  let dateStr = String(str).trim();
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(dateStr);
+  if (!hasExplicitTimezone) {
+    dateStr = dateStr.replace(' ', 'T');
+    if (!dateStr.endsWith('Z')) dateStr += 'Z';
   }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
