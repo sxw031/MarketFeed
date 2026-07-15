@@ -16,9 +16,10 @@
 
   async function readJson(url, options) {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : null;
     if (!response.ok || !data.success) {
-      throw new Error(data?.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
     }
     return data;
   }
@@ -46,6 +47,9 @@
     },
     fetchAggregationStatus() {
       return readJson(`${API_BASE}/aggregation-status`);
+    },
+    triggerAggregation() {
+      return readJson(`${API_BASE}/aggregate`, { method: 'POST' });
     },
     fetchArticlePreview(articleId, options = {}) {
       return readJson(`${API_BASE}/article-preview?articleId=${encodeURIComponent(articleId)}`, options);

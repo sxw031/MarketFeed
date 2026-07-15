@@ -13,26 +13,55 @@ const { startBackgroundSync } = require('./services/backgroundSync');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS: restrict to known origins. In production only the configured
-// production domain(s) are allowed; in development localhost is allowed too.
-// CORS_ALLOWED_ORIGINS can be a comma-separated list to override/extend.
+// CORS: allow the configured app origins plus the current request host so
+// preview/custom domains on the same deployment do not get blocked.
 const DEFAULT_PROD_ORIGINS = ['https://marketfeed.onrender.com'];
 const DEFAULT_DEV_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+function normalizeOrigin(value) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
 const configuredOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
-  .map(o => o.trim())
+  .map(o => normalizeOrigin(o.trim()))
   .filter(Boolean);
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigins = configuredOrigins.length > 0
+const defaultOrigins = configuredOrigins.length > 0
   ? configuredOrigins
   : (isProduction ? DEFAULT_PROD_ORIGINS : [...DEFAULT_PROD_ORIGINS, ...DEFAULT_DEV_ORIGINS]);
+const allowedOrigins = new Set([
+  ...defaultOrigins,
+  normalizeOrigin(process.env.APP_URL)
+].filter(Boolean));
 
-const corsOptions = {
-  origin(origin, callback) {
-    // Allow non-browser requests (no Origin header, e.g. curl/server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
-  }
+function requestOriginFor(req) {
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim();
+  if (!host) return null;
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || (isProduction ? 'https' : 'http'))
+    .split(',')[0]
+    .trim();
+  return `${proto}://${host}`;
+}
+
+const corsOptionsDelegate = (req, callback) => {
+  const origin = normalizeOrigin(req.header('Origin'));
+  const requestOrigin = requestOriginFor(req);
+  callback(null, {
+    origin(originToCheck, done) {
+      const normalizedOrigin = normalizeOrigin(originToCheck || origin);
+      // Allow non-browser requests (no Origin header, e.g. curl/server-to-server)
+      if (!normalizedOrigin) return done(null, true);
+      if (allowedOrigins.has(normalizedOrigin)) return done(null, true);
+      if (requestOrigin && normalizedOrigin === requestOrigin) return done(null, true);
+      done(new Error('Not allowed by CORS'));
+    }
+  });
 };
 
 // Security headers
@@ -48,7 +77,7 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(compression()); // gzip all responses
-app.use(cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
 app.use(express.json({ limit: '2mb' }));
 
 // Basic rate limiting (in-memory, per IP)

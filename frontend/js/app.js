@@ -173,6 +173,10 @@ async function loadNews(silent = false, options = {}) {
   if (options.resetPage) currentPage = 1;
   if (!silent) showLoading(true);
   const requestId = ++activeNewsRequestId;
+  const previousNews = Array.isArray(allNews) ? [...allNews] : [];
+  const previousTotalNewsCount = totalNewsCount;
+  const previousTotalNewsPages = totalNewsPages;
+  const previousResultsCapped = resultsCapped;
   if (activeNewsAbortController) activeNewsAbortController.abort();
   activeNewsAbortController = new AbortController();
   try {
@@ -192,11 +196,22 @@ async function loadNews(silent = false, options = {}) {
   } catch (e) {
     if (e.name === 'AbortError') return;
     console.error('loadNews:', e);
-    allNews = [];
-    totalNewsCount = 0;
-    totalNewsPages = 1;
-    updateResultsSummary(0);
-    if (!silent) showEmptyState(true);
+    if (previousNews.length > 0) {
+      allNews = previousNews;
+      totalNewsCount = previousTotalNewsCount || previousNews.length;
+      totalNewsPages = previousTotalNewsPages || 1;
+      resultsCapped = previousResultsCapped;
+      updateResultsSummary(totalNewsCount);
+      renderNews();
+      if (!silent) showToast('Could not refresh the latest news. Showing the previously loaded articles instead.', 'error');
+    } else {
+      allNews = [];
+      totalNewsCount = 0;
+      totalNewsPages = 1;
+      resultsCapped = false;
+      updateResultsSummary(0);
+      if (!silent) showEmptyState(true);
+    }
   } finally {
     if (requestId === activeNewsRequestId && !silent) showLoading(false);
   }
@@ -329,13 +344,12 @@ async function triggerAggregation() {
   setSyncButtonState(true);
   showSyncBar(true, 'Starting sync...', 0);
   try {
-    const res = await fetch(`${API_BASE}/aggregate`, { method: 'POST' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await window.MarketFeedApi.triggerAggregation();
     startPolling();
   } catch (e) {
     console.error('triggerAggregation:', e);
     showSyncBar(true, 'Sync failed - please try again', 0);
-    showToast('Sync failed. Please check your connection and try again.', 'error');
+    showToast(e.message || 'Sync failed. Please check your connection and try again.', 'error');
     isSyncing = false;
     setSyncButtonState(false);
     setTimeout(() => showSyncBar(false), 3000);
@@ -346,8 +360,7 @@ function startPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
     try {
-      const res = await fetch(`${API_BASE}/aggregation-status`);
-      const data = await res.json();
+      const data = await window.MarketFeedApi.fetchAggregationStatus();
       if (data.success && data.status.inProgress) {
         const s = data.status;
         const done = s.completedCompanies.length;
@@ -362,7 +375,7 @@ function startPolling() {
         pollingTimer = null;
         isSyncing = false;
         setSyncButtonState(false);
-        await loadNews(false);
+        await loadNews(false, { resetPage: true });
       }
     } catch (e) {
       console.error('polling:', e);
@@ -371,6 +384,7 @@ function startPolling() {
       isSyncing = false;
       setSyncButtonState(false);
       showSyncBar(false);
+      showToast('Sync status update failed. Please refresh the feed in a moment.', 'error');
     }
   }, 2500);
 }
