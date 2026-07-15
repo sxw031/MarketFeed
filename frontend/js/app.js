@@ -237,14 +237,36 @@ function sortAndRender() {
 }
 
 // ==================== AGGREGATION & PROGRESS ====================
+// "Sync Latest" pulls fresh articles for every tracked company right now
+// (instead of waiting for the automatic background refresh) and streams
+// progress into the sync status bar while it runs.
+let isSyncing = false;
+
+function setSyncButtonState(syncing) {
+  const btn = document.getElementById('refreshBtn');
+  if (!btn) return;
+  const icon = btn.querySelector('i');
+  const label = btn.querySelector('span');
+  btn.disabled = syncing;
+  btn.classList.toggle('is-syncing', syncing);
+  if (icon) icon.className = syncing ? 'fas fa-sync fa-spin' : 'fas fa-bolt';
+  if (label) label.textContent = syncing ? 'Syncing...' : 'Sync Latest';
+}
+
 async function triggerAggregation() {
+  if (isSyncing) return; // avoid duplicate concurrent syncs from repeat clicks
+  isSyncing = true;
+  setSyncButtonState(true);
   showSyncBar(true, 'Starting sync...', 0);
   try {
-    await fetch(`${API_BASE}/aggregate`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/aggregate`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     startPolling();
   } catch (e) {
     console.error('triggerAggregation:', e);
-    showSyncBar(true, 'Sync failed - retrying...', 0);
+    showSyncBar(true, 'Sync failed - please try again', 0);
+    isSyncing = false;
+    setSyncButtonState(false);
     setTimeout(() => showSyncBar(false), 3000);
   }
 }
@@ -258,7 +280,7 @@ function startPolling() {
       if (data.success && data.status.inProgress) {
         const s = data.status;
         const done = s.completedCompanies.length;
-        const total = s.totalCompanies || 18;
+        const total = s.totalCompanies || done || 1;
         const pct = Math.round((done / total) * 100);
         showSyncBar(true, `Syncing: ${done}/${total} [${s.currentCompany || '...'}]`, pct);
         // Refresh news every other poll
@@ -268,9 +290,18 @@ function startPolling() {
         setTimeout(() => showSyncBar(false), 2500);
         clearInterval(pollingTimer);
         pollingTimer = null;
+        isSyncing = false;
+        setSyncButtonState(false);
         await loadNews(false);
       }
-    } catch (e) { console.error('polling:', e); }
+    } catch (e) {
+      console.error('polling:', e);
+      clearInterval(pollingTimer);
+      pollingTimer = null;
+      isSyncing = false;
+      setSyncButtonState(false);
+      showSyncBar(false);
+    }
   }, 2500);
 }
 
@@ -569,16 +600,19 @@ function setupEventListeners() {
     });
   });
 
-  // Time range buttons
+  // Time range buttons (6h/24h/72h/1w/1m) and yearly buttons (2023-2026)
   document.querySelectorAll('.btn-quick-time').forEach(btn => {
     btn.addEventListener('click', () => {
       const range = btn.dataset.range;
-      const isKnownRange = Boolean(TIME_RANGE_WINDOWS[range]) || /^\d{4}$/.test(range || '');
+      const isYear = /^\d{4}$/.test(range || '');
+      const isKnownRange = Boolean(TIME_RANGE_WINDOWS[range]) || isYear;
       activeTimeRangeKey = isKnownRange ? range : '24h';
       document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
       loadNews();
+      // Yearly buttons also restore the Major Events report for that year
+      if (isYear) showYearlySummary(Number(range));
     });
   });
 
