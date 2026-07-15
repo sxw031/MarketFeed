@@ -887,7 +887,7 @@ function setupEventListeners() {
     const input = document.getElementById('aiChatInput');
     const q = input.value.trim();
     if (!q) return;
-    appendChat('user', q);
+    appendChat('user', esc(q));
     input.value = '';
     const botMsg = appendChat('bot', '<div class="typing-indicator"><span></span><span></span><span></span></div>');
     try {
@@ -1033,7 +1033,7 @@ function renderMarkdown(md) {
     const dataRows = rows.slice(1);
     
     function fmt(text) {
-      return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+      return esc(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
     }
 
     // 2-column key-value → card list
@@ -1084,7 +1084,12 @@ function renderMarkdown(md) {
   let html = processed.map(line => {
     // Skip lines that are already HTML (tables)
     if (line.startsWith('<div class="report-')) return line;
-    
+
+    // Escape any raw HTML in the source text before applying markdown
+    // transformations below, so injected tags (e.g. from a reflected user
+    // query or article content) can never execute as HTML/script.
+    line = esc(line);
+
     // Headings
     line = line.replace(/^### (.*$)/gim, '<h3 class="report-h3">$1</h3>');
     line = line.replace(/^## (.*$)/gim, '<h2 class="report-h2">$1</h2>');
