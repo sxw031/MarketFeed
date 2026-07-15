@@ -19,6 +19,11 @@ const TIME_RANGE_WINDOWS = {
   '1m': 30 * 24 * 60 * 60 * 1000
 };
 
+// A "range key" is either a rolling window (6h/24h/...) or a 4-digit year.
+function isYearRangeKey(rangeKey) {
+  return /^\d{4}$/.test(rangeKey || '');
+}
+
 // Logo URLs - reliable sources for each company
 const LOGO_MAP = {
   'HSBC': 'https://img.logo.dev/hsbc.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
@@ -174,7 +179,7 @@ function getTimeRangeBounds(rangeKey) {
   }
 
   const year = Number(rangeKey);
-  if (Number.isInteger(year) && String(rangeKey).length === 4) {
+  if (isYearRangeKey(rangeKey)) {
     const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
     const end = year === now.getUTCFullYear()
       ? now
@@ -623,7 +628,7 @@ function setupEventListeners() {
   document.querySelectorAll('.btn-quick-time').forEach(btn => {
     btn.addEventListener('click', () => {
       const range = btn.dataset.range;
-      const isYear = /^\d{4}$/.test(range || '');
+      const isYear = isYearRangeKey(range);
       const isKnownRange = Boolean(TIME_RANGE_WINDOWS[range]) || isYear;
       activeTimeRangeKey = isKnownRange ? range : '24h';
       document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
