@@ -68,12 +68,15 @@ async function storeArticles(articles) {
 
 /**
  * Normalize any date input to ISO 8601 format "YYYY-MM-DDTHH:MM:SSZ"
- * This ensures consistent parsing in both Node.js and browsers across all timezones
+ * This ensures consistent parsing in both Node.js and browsers across all timezones.
+ * Returns null when the input is missing or unparseable so callers can store/treat
+ * it as "date unknown" instead of silently fabricating the current time (which would
+ * make dateless articles look freshly published and pollute time-window filtering).
  */
 function normalizeToISO(input) {
-  if (!input) return new Date().toISOString().split('.')[0] + 'Z';
+  if (!input) return null;
   const d = new Date(input);
-  if (isNaN(d.getTime())) return new Date().toISOString().split('.')[0] + 'Z';
+  if (isNaN(d.getTime())) return null;
   return d.toISOString().split('.')[0] + 'Z';
 }
 
@@ -138,14 +141,18 @@ function buildNewsWhere(filters = {}, params = []) {
 
   if (filters.startDate) {
     const startISO = normalizeToISO(filters.startDate);
-    sql += ' AND publishedAt >= ?';
-    params.push(startISO);
+    if (startISO) {
+      sql += ' AND publishedAt >= ?';
+      params.push(startISO);
+    }
   }
 
   if (filters.endDate) {
     const endISO = normalizeToISO(filters.endDate);
-    sql += ' AND publishedAt <= ?';
-    params.push(endISO);
+    if (endISO) {
+      sql += ' AND publishedAt <= ?';
+      params.push(endISO);
+    }
   }
 
   if (filters.category) {
@@ -206,6 +213,11 @@ async function getNews(filters = {}) {
   return query.all(sql, params);
 }
 
+// Hard cap on the number of rows returned when pageSize=all is requested for a
+// rolling time window. Without this a large window (e.g. 1 month) could return
+// tens of thousands of rows, risking OOM on the server and a stalled browser.
+const MAX_ALL_RESULTS = Math.max(100, Number.parseInt(process.env.MAX_ALL_PAGE_SIZE || '1000', 10) || 1000);
+
 async function getNewsPage(filters = {}) {
   const rawPageSize = typeof filters.pageSize === 'string' ? filters.pageSize.trim().toLowerCase() : filters.pageSize;
   const useAllResults = rawPageSize === 'all';
@@ -221,8 +233,8 @@ async function getNewsPage(filters = {}) {
   const total = countRow?.count || 0;
   const items = useAllResults
     ? await query.all(
-      `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)}`,
-      params
+      `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)} LIMIT ?`,
+      [...params, MAX_ALL_RESULTS]
     )
     : await query.all(
       `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)} LIMIT ? OFFSET ?`,
@@ -233,7 +245,8 @@ async function getNewsPage(filters = {}) {
     items,
     total,
     page: useAllResults ? 1 : page,
-    pageSize: useAllResults ? Math.max(total, 1) : pageSize
+    pageSize: useAllResults ? Math.max(items.length, 1) : pageSize,
+    capped: useAllResults && total > items.length
   };
 }
 

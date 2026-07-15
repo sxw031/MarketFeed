@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { query } = require('../models/db');
 const { COMPANIES } = require('../config/sources');
 
@@ -17,9 +18,9 @@ async function initSubscriptionTable() {
   await query.run(`CREATE INDEX IF NOT EXISTS idx_sub_active ON subscriptions(active)`);
 }
 
-// Generate a random unsubscribe token
+// Generate a cryptographically secure random unsubscribe token
 function generateToken() {
-  return Array.from({ length: 32 }, () => Math.random().toString(36)[2]).join('');
+  return crypto.randomBytes(32).toString('hex');
 }
 
 // Subscribe a user
@@ -64,6 +65,109 @@ async function getActiveSubscriptions(frequency) {
     [frequency]
   );
   return rows.map(r => ({ ...r, companies: JSON.parse(r.companies) }));
+}
+
+// --- Digest sending (SMTP via nodemailer) ---
+// Sending is only attempted when SMTP_HOST/SMTP_USER/SMTP_PASS are configured.
+// Without them, this is a documented no-op so subscriptions can still be collected
+// in environments (e.g. local dev, sandboxes) that don't have real mail credentials.
+const FREQUENCY_INTERVAL_MS = {
+  daily: 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+  monthly: 30 * 24 * 60 * 60 * 1000
+};
+
+let cachedTransporter = null;
+let loggedMissingSmtpConfig = false;
+
+function isSmtpConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function getMailTransporter() {
+  if (!isSmtpConfigured()) return null;
+  if (cachedTransporter) return cachedTransporter;
+  // Lazy-require so environments without the dependency installed (or without
+  // SMTP configured) never pay the cost of loading it.
+  const nodemailer = require('nodemailer');
+  cachedTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number.parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+  });
+  return cachedTransporter;
+}
+
+// Find subscriptions of a given frequency that are due to receive a digest
+// (never sent, or last sent longer ago than the frequency's interval).
+async function getDueSubscriptions(frequency) {
+  const intervalMs = FREQUENCY_INTERVAL_MS[frequency];
+  if (!intervalMs) return [];
+  const cutoffISO = new Date(Date.now() - intervalMs).toISOString();
+  const rows = await query.all(
+    `SELECT * FROM subscriptions WHERE active = 1 AND frequency = ? AND (last_sent IS NULL OR last_sent <= ?)`,
+    [frequency, cutoffISO]
+  );
+  return rows.map(r => ({ ...r, companies: JSON.parse(r.companies) }));
+}
+
+async function markDigestSent(subscriptionId) {
+  await query.run('UPDATE subscriptions SET last_sent = ? WHERE id = ?', [new Date().toISOString(), subscriptionId]);
+}
+
+/**
+ * Send digest emails for a given frequency ('daily' | 'weekly' | 'monthly').
+ * `getNews` is injected (from newsAggregator) to avoid a hard dependency cycle.
+ * Returns a summary of how many digests were sent/skipped/failed.
+ */
+async function sendDigestEmails(frequency, { getNews, appUrl, unsubscribeUrl } = {}) {
+  const due = await getDueSubscriptions(frequency);
+  if (due.length === 0) return { sent: 0, skipped: 0, failed: 0 };
+
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    if (!loggedMissingSmtpConfig) {
+      console.log('[Email] SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASS) — digest emails will not be sent. Set these env vars to enable delivery.');
+      loggedMissingSmtpConfig = true;
+    }
+    return { sent: 0, skipped: due.length, failed: 0 };
+  }
+
+  const resolvedAppUrl = appUrl || process.env.APP_URL || 'http://localhost:3000';
+  const resolvedUnsubUrl = unsubscribeUrl || process.env.UNSUBSCRIBE_URL || `${resolvedAppUrl}/api/unsubscribe`;
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  let sent = 0, failed = 0;
+  for (const sub of due) {
+    try {
+      const news = getNews ? await getNews({ companies: sub.companies, limit: 20, sort: 'latest' }) : [];
+      const topNews = news.slice(0, 3);
+      const strategy = generateStrategySuggestions(news);
+      const html = generateEmailHTML({
+        topNews,
+        strategy,
+        podcastUrl: null,
+        frequency,
+        unsubscribeToken: sub.unsubscribe_token
+      })
+        .replace('{{UNSUBSCRIBE_URL}}', resolvedUnsubUrl)
+        .replace('{{APP_URL}}', resolvedAppUrl);
+
+      await transporter.sendMail({
+        from: fromAddress,
+        to: sub.email,
+        subject: `AlphaFeed ${frequency.charAt(0).toUpperCase()}${frequency.slice(1)} Digest`,
+        html
+      });
+      await markDigestSent(sub.id);
+      sent++;
+    } catch (err) {
+      console.error(`[Email] Failed to send ${frequency} digest to ${sub.email}:`, err.message);
+      failed++;
+    }
+  }
+  return { sent, skipped: 0, failed };
 }
 
 // Generate email HTML content
@@ -186,5 +290,7 @@ module.exports = {
   unsubscribe,
   getActiveSubscriptions,
   generateEmailHTML,
-  generateStrategySuggestions
+  generateStrategySuggestions,
+  sendDigestEmails,
+  isSmtpConfigured
 };

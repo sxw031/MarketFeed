@@ -19,47 +19,69 @@ async function initIPOTable() {
   await query.run(`CREATE INDEX IF NOT EXISTS idx_ipo_date ON ipo_watchlist(expected_date)`);
   await query.run(`CREATE INDEX IF NOT EXISTS idx_ipo_status ON ipo_watchlist(status)`);
 
-  // Seed with known upcoming IPOs if table is empty
+  // Seed with known upcoming IPOs if table is empty, or refresh if every
+  // non-public seed row's expected_date has already passed (i.e. the data
+  // is stale, e.g. after a long period without an update) so the tracker
+  // doesn't show every entry as "Overdue" forever.
   const count = await query.get('SELECT COUNT(*) as cnt FROM ipo_watchlist');
   if (count.cnt === 0) {
+    await seedIPOData();
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const stale = await query.get(
+    `SELECT COUNT(*) as cnt FROM ipo_watchlist WHERE status != 'public' AND expected_date >= ?`,
+    [today]
+  );
+  if (stale.cnt === 0) {
+    console.log('[IPO] All seed data is in the past — refreshing with up-to-date relative dates');
+    await query.run(`DELETE FROM ipo_watchlist`);
     await seedIPOData();
   }
 }
 
+// Helper: compute an ISO date (YYYY-MM-DD) offset from today by N months
+function monthsFromNow(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split('T')[0];
+}
+
 async function seedIPOData() {
   const ipos = [
-    { company_name: 'Stripe', ticker: 'STRP', industry: 'Fintech', expected_date: '2025-09-01', valuation: '$65B', status: 'rumored', exchange: 'NYSE', description: 'Global payments infrastructure company. Has been one of the most anticipated IPOs for years.' },
-    { company_name: 'SpaceX', ticker: 'SPACEX', industry: 'Aerospace', expected_date: '2026-06-01', valuation: '$350B', status: 'rumored', exchange: 'NASDAQ', description: 'Space exploration and satellite internet (Starlink). Elon Musk has hinted at potential Starlink spinoff IPO.' },
-    { company_name: 'Databricks', ticker: 'DBR', industry: 'AI/Data', expected_date: '2025-12-01', valuation: '$43B', status: 'preparing', exchange: 'NASDAQ', description: 'Data lakehouse platform. Recently raised at $43B valuation, actively preparing for public listing.' },
-    { company_name: 'Shein', ticker: 'SHEIN', industry: 'E-commerce/Fashion', expected_date: '2025-09-01', valuation: '$66B', status: 'filed', exchange: 'LSE', description: 'Fast-fashion e-commerce giant. Filed for London Stock Exchange IPO amid US regulatory challenges.' },
-    { company_name: 'Klarna', ticker: 'KLAR', industry: 'Fintech', expected_date: '2025-08-01', valuation: '$14.6B', status: 'filed', exchange: 'NYSE', description: 'Buy-now-pay-later leader. Filed S-1 with SEC for US IPO.' },
-    { company_name: 'CoreWeave', ticker: 'CRWV', industry: 'Cloud/AI', expected_date: '2025-07-15', valuation: '$35B', status: 'filed', exchange: 'NASDAQ', description: 'AI cloud computing infrastructure provider. Filed for IPO to fund GPU expansion.' },
-    { company_name: 'Cerebras Systems', ticker: 'CBRS', industry: 'AI Hardware', expected_date: '2025-09-01', valuation: '$8B', status: 'filed', exchange: 'NASDAQ', description: 'AI chip maker with wafer-scale processors. Filed S-1 for NASDAQ listing.' },
-    { company_name: 'Discord', ticker: 'DISC', industry: 'Social/Gaming', expected_date: '2026-03-01', valuation: '$15B', status: 'rumored', exchange: 'NASDAQ', description: 'Communication platform for communities. Rejected Microsoft acquisition, exploring IPO path.' },
-    { company_name: 'Plaid', ticker: 'PLAD', industry: 'Fintech', expected_date: '2025-12-01', valuation: '$13.4B', status: 'preparing', exchange: 'NYSE', description: 'Financial data connectivity platform. Building out revenue before going public.' },
-    { company_name: 'Canva', ticker: 'CNVA', industry: 'Design/SaaS', expected_date: '2026-01-01', valuation: '$26B', status: 'rumored', exchange: 'NASDAQ', description: 'Online design platform with 170M+ monthly users. Profitable and exploring IPO timing.' },
-    { company_name: 'Revolut', ticker: 'RVLT', industry: 'Fintech', expected_date: '2025-10-01', valuation: '$45B', status: 'preparing', exchange: 'LSE', description: 'Digital banking super-app. Obtained UK banking license, preparing London listing.' },
-    { company_name: 'Impossible Foods', ticker: 'IMPF', industry: 'Food Tech', expected_date: '2026-03-01', valuation: '$7B', status: 'rumored', exchange: 'NASDAQ', description: 'Plant-based meat alternatives. Exploring IPO after restructuring and cost cuts.' },
-    { company_name: 'Chime', ticker: 'CHME', industry: 'Fintech', expected_date: '2025-10-01', valuation: '$25B', status: 'preparing', exchange: 'NYSE', description: 'Digital-first banking platform. Confidentially filed for IPO.' },
-    { company_name: 'Medline Industries', ticker: 'MDLN', industry: 'Healthcare', expected_date: '2025-11-01', valuation: '$34B', status: 'preparing', exchange: 'NYSE', description: 'Medical supplies manufacturer and distributor. One of largest private US companies.' },
-    { company_name: 'Fanatics', ticker: 'FNTC', industry: 'Sports/E-commerce', expected_date: '2026-06-01', valuation: '$31B', status: 'rumored', exchange: 'NYSE', description: 'Sports merchandise, betting, and collectibles platform.' },
-    { company_name: 'Anthropic', ticker: 'ANTH', industry: 'AI', expected_date: '2026-09-01', valuation: '$60B', status: 'rumored', exchange: 'NASDAQ', description: 'AI safety company behind Claude. Rapidly growing revenue, potential IPO candidate.' },
-    { company_name: 'OpenAI', ticker: 'OAII', industry: 'AI', expected_date: '2026-12-01', valuation: '$150B+', status: 'rumored', exchange: 'NASDAQ', description: 'Creator of ChatGPT and GPT models. Restructuring to for-profit entity, potential future IPO.' },
-    { company_name: 'Figma', ticker: 'FIGM', industry: 'Design/SaaS', expected_date: '2026-03-01', valuation: '$12.5B', status: 'rumored', exchange: 'NYSE', description: 'Collaborative design tool. After failed Adobe acquisition, IPO is likely path forward.' },
-    { company_name: 'Instacart (Maplebear)', ticker: 'CART', industry: 'Delivery', expected_date: '2025-08-01', valuation: '$12B', status: 'public', exchange: 'NASDAQ', description: 'Grocery delivery platform. Already public since Sep 2023.' },
-    { company_name: 'ServiceTitan', ticker: 'TTAN', industry: 'SaaS', expected_date: '2025-07-20', valuation: '$9.5B', status: 'filed', exchange: 'NASDAQ', description: 'Software for trades businesses. Filed for IPO with strong revenue growth.' },
-    { company_name: 'Wiz', ticker: 'WIZ', industry: 'Cybersecurity', expected_date: '2025-10-01', valuation: '$12B', status: 'preparing', exchange: 'NASDAQ', description: 'Cloud security platform. Rejected Google acquisition offer, pursuing independent IPO.' },
+    { company_name: 'Stripe', ticker: 'STRP', industry: 'Fintech', expected_date: monthsFromNow(2), valuation: '$65B', status: 'rumored', exchange: 'NYSE', description: 'Global payments infrastructure company. Has been one of the most anticipated IPOs for years.' },
+    { company_name: 'SpaceX', ticker: 'SPACEX', industry: 'Aerospace', expected_date: monthsFromNow(11), valuation: '$350B', status: 'rumored', exchange: 'NASDAQ', description: 'Space exploration and satellite internet (Starlink). Elon Musk has hinted at potential Starlink spinoff IPO.' },
+    { company_name: 'Databricks', ticker: 'DBR', industry: 'AI/Data', expected_date: monthsFromNow(5), valuation: '$43B', status: 'preparing', exchange: 'NASDAQ', description: 'Data lakehouse platform. Recently raised at $43B valuation, actively preparing for public listing.' },
+    { company_name: 'Shein', ticker: 'SHEIN', industry: 'E-commerce/Fashion', expected_date: monthsFromNow(2), valuation: '$66B', status: 'filed', exchange: 'LSE', description: 'Fast-fashion e-commerce giant. Filed for London Stock Exchange IPO amid US regulatory challenges.' },
+    { company_name: 'Klarna', ticker: 'KLAR', industry: 'Fintech', expected_date: monthsFromNow(1), valuation: '$14.6B', status: 'filed', exchange: 'NYSE', description: 'Buy-now-pay-later leader. Filed S-1 with SEC for US IPO.' },
+    { company_name: 'CoreWeave', ticker: 'CRWV', industry: 'Cloud/AI', expected_date: monthsFromNow(1), valuation: '$35B', status: 'filed', exchange: 'NASDAQ', description: 'AI cloud computing infrastructure provider. Filed for IPO to fund GPU expansion.' },
+    { company_name: 'Cerebras Systems', ticker: 'CBRS', industry: 'AI Hardware', expected_date: monthsFromNow(2), valuation: '$8B', status: 'filed', exchange: 'NASDAQ', description: 'AI chip maker with wafer-scale processors. Filed S-1 for NASDAQ listing.' },
+    { company_name: 'Discord', ticker: 'DISC', industry: 'Social/Gaming', expected_date: monthsFromNow(8), valuation: '$15B', status: 'rumored', exchange: 'NASDAQ', description: 'Communication platform for communities. Rejected Microsoft acquisition, exploring IPO path.' },
+    { company_name: 'Plaid', ticker: 'PLAD', industry: 'Fintech', expected_date: monthsFromNow(5), valuation: '$13.4B', status: 'preparing', exchange: 'NYSE', description: 'Financial data connectivity platform. Building out revenue before going public.' },
+    { company_name: 'Canva', ticker: 'CNVA', industry: 'Design/SaaS', expected_date: monthsFromNow(6), valuation: '$26B', status: 'rumored', exchange: 'NASDAQ', description: 'Online design platform with 170M+ monthly users. Profitable and exploring IPO timing.' },
+    { company_name: 'Revolut', ticker: 'RVLT', industry: 'Fintech', expected_date: monthsFromNow(3), valuation: '$45B', status: 'preparing', exchange: 'LSE', description: 'Digital banking super-app. Obtained UK banking license, preparing London listing.' },
+    { company_name: 'Impossible Foods', ticker: 'IMPF', industry: 'Food Tech', expected_date: monthsFromNow(8), valuation: '$7B', status: 'rumored', exchange: 'NASDAQ', description: 'Plant-based meat alternatives. Exploring IPO after restructuring and cost cuts.' },
+    { company_name: 'Chime', ticker: 'CHME', industry: 'Fintech', expected_date: monthsFromNow(3), valuation: '$25B', status: 'preparing', exchange: 'NYSE', description: 'Digital-first banking platform. Confidentially filed for IPO.' },
+    { company_name: 'Medline Industries', ticker: 'MDLN', industry: 'Healthcare', expected_date: monthsFromNow(4), valuation: '$34B', status: 'preparing', exchange: 'NYSE', description: 'Medical supplies manufacturer and distributor. One of largest private US companies.' },
+    { company_name: 'Fanatics', ticker: 'FNTC', industry: 'Sports/E-commerce', expected_date: monthsFromNow(11), valuation: '$31B', status: 'rumored', exchange: 'NYSE', description: 'Sports merchandise, betting, and collectibles platform.' },
+    { company_name: 'Anthropic', ticker: 'ANTH', industry: 'AI', expected_date: monthsFromNow(14), valuation: '$60B', status: 'rumored', exchange: 'NASDAQ', description: 'AI safety company behind Claude. Rapidly growing revenue, potential IPO candidate.' },
+    { company_name: 'OpenAI', ticker: 'OAII', industry: 'AI', expected_date: monthsFromNow(17), valuation: '$150B+', status: 'rumored', exchange: 'NASDAQ', description: 'Creator of ChatGPT and GPT models. Restructuring to for-profit entity, potential future IPO.' },
+    { company_name: 'Figma', ticker: 'FIGM', industry: 'Design/SaaS', expected_date: monthsFromNow(8), valuation: '$12.5B', status: 'rumored', exchange: 'NYSE', description: 'Collaborative design tool. After failed Adobe acquisition, IPO is likely path forward.' },
+    { company_name: 'Instacart (Maplebear)', ticker: 'CART', industry: 'Delivery', expected_date: monthsFromNow(-34), valuation: '$12B', status: 'public', exchange: 'NASDAQ', description: 'Grocery delivery platform. Already public since Sep 2023.' },
+    { company_name: 'ServiceTitan', ticker: 'TTAN', industry: 'SaaS', expected_date: monthsFromNow(1), valuation: '$9.5B', status: 'filed', exchange: 'NASDAQ', description: 'Software for trades businesses. Filed for IPO with strong revenue growth.' },
+    { company_name: 'Wiz', ticker: 'WIZ', industry: 'Cybersecurity', expected_date: monthsFromNow(3), valuation: '$12B', status: 'preparing', exchange: 'NASDAQ', description: 'Cloud security platform. Rejected Google acquisition offer, pursuing independent IPO.' },
     // --- Data sourced from Robinhood IPO Access & Futu/Moomoo IPO Subscription ---
-    { company_name: 'Deel', ticker: 'DEEL', industry: 'HR Tech/SaaS', expected_date: '2026-09-01', valuation: '$17.3B', status: 'preparing', exchange: 'NASDAQ', description: 'Global HR and payroll platform. $800M ARR run rate, ramping up preparations to go public. (Source: Robinhood IPO Access)' },
-    { company_name: 'Anduril', ticker: 'ANDR', industry: 'Defense/AI', expected_date: '2026-12-01', valuation: '$32.5B', status: 'rumored', exchange: 'NYSE', description: 'AI-powered defense technology company. IPO plausible in 2026-2027 pending Ohio manufacturing facility completion. (Source: Robinhood IPO Access)' },
-    { company_name: 'Kraken', ticker: 'KRKN', industry: 'Cryptocurrency', expected_date: '2026-09-01', valuation: '$20B', status: 'preparing', exchange: 'NASDAQ', description: 'Major cryptocurrency exchange. Announced potential IPO targeting 2026 amid crypto market recovery. (Source: Robinhood IPO Access)' },
-    { company_name: 'Dataiku', ticker: 'DIKU', industry: 'AI/Data', expected_date: '2026-06-01', valuation: '$4.6B', status: 'preparing', exchange: 'NASDAQ', description: 'AI data analytics platform. Hired investment banks to push ahead with IPO, targeting H1 2026. (Source: Futu/Moomoo)' },
-    { company_name: 'Bolt (Mobility)', ticker: 'BOLT', industry: 'Mobility/Transport', expected_date: '2026-09-01', valuation: '$8.4B', status: 'rumored', exchange: 'LSE', description: 'European ride-hailing and delivery super-app. Exploring listing in Europe or US in 2026. (Source: Futu/Moomoo)' },
-    { company_name: 'Blockchain.com', ticker: 'BKCM', industry: 'Cryptocurrency', expected_date: '2026-06-01', valuation: '$14B', status: 'preparing', exchange: 'NASDAQ', description: 'Digital asset platform with 90M+ wallets created. Plans to go public in 2026. (Source: Futu/Moomoo)' },
-    { company_name: 'Cohesity', ticker: 'COHE', industry: 'Cloud/Data', expected_date: '2026-03-01', valuation: '$4.7B', status: 'preparing', exchange: 'NASDAQ', description: 'Data management and security platform. In state of public readiness, targeting 2026 listing. (Source: Robinhood IPO Access)' },
-    { company_name: 'Wealthfront', ticker: 'WLTH', industry: 'Fintech', expected_date: '2025-12-15', valuation: '$1.4B', status: 'filed', exchange: 'NASDAQ', description: 'Automated wealth management platform with $88B AUM. Filed for NASDAQ listing. (Source: Robinhood IPO Access)' },
-    { company_name: 'Grayscale Investments', ticker: 'GRAY', industry: 'Digital Assets', expected_date: '2026-03-01', valuation: '$3B', status: 'filed', exchange: 'NYSE', description: 'Digital asset manager with $35B AUM. Filed IPO paperwork with SEC. (Source: Robinhood IPO Access)' },
-    { company_name: 'DriveWealth', ticker: 'DRWT', industry: 'Fintech', expected_date: '2026-09-01', valuation: '$2.9B', status: 'rumored', exchange: 'NASDAQ', description: 'Global fintech infrastructure for fractional investing. CEO targeting IPO as next capital raise. (Source: Futu/Moomoo)' }
+    { company_name: 'Deel', ticker: 'DEEL', industry: 'HR Tech/SaaS', expected_date: monthsFromNow(14), valuation: '$17.3B', status: 'preparing', exchange: 'NASDAQ', description: 'Global HR and payroll platform. $800M ARR run rate, ramping up preparations to go public. (Source: Robinhood IPO Access)' },
+    { company_name: 'Anduril', ticker: 'ANDR', industry: 'Defense/AI', expected_date: monthsFromNow(17), valuation: '$32.5B', status: 'rumored', exchange: 'NYSE', description: 'AI-powered defense technology company. IPO plausible pending Ohio manufacturing facility completion. (Source: Robinhood IPO Access)' },
+    { company_name: 'Kraken', ticker: 'KRKN', industry: 'Cryptocurrency', expected_date: monthsFromNow(14), valuation: '$20B', status: 'preparing', exchange: 'NASDAQ', description: 'Major cryptocurrency exchange. Announced potential IPO amid crypto market recovery. (Source: Robinhood IPO Access)' },
+    { company_name: 'Dataiku', ticker: 'DIKU', industry: 'AI/Data', expected_date: monthsFromNow(11), valuation: '$4.6B', status: 'preparing', exchange: 'NASDAQ', description: 'AI data analytics platform. Hired investment banks to push ahead with IPO. (Source: Futu/Moomoo)' },
+    { company_name: 'Bolt (Mobility)', ticker: 'BOLT', industry: 'Mobility/Transport', expected_date: monthsFromNow(14), valuation: '$8.4B', status: 'rumored', exchange: 'LSE', description: 'European ride-hailing and delivery super-app. Exploring listing in Europe or US. (Source: Futu/Moomoo)' },
+    { company_name: 'Blockchain.com', ticker: 'BKCM', industry: 'Cryptocurrency', expected_date: monthsFromNow(11), valuation: '$14B', status: 'preparing', exchange: 'NASDAQ', description: 'Digital asset platform with 90M+ wallets created. Plans to go public. (Source: Futu/Moomoo)' },
+    { company_name: 'Cohesity', ticker: 'COHE', industry: 'Cloud/Data', expected_date: monthsFromNow(8), valuation: '$4.7B', status: 'preparing', exchange: 'NASDAQ', description: 'Data management and security platform. In state of public readiness. (Source: Robinhood IPO Access)' },
+    { company_name: 'Wealthfront', ticker: 'WLTH', industry: 'Fintech', expected_date: monthsFromNow(5), valuation: '$1.4B', status: 'filed', exchange: 'NASDAQ', description: 'Automated wealth management platform with $88B AUM. Filed for NASDAQ listing. (Source: Robinhood IPO Access)' },
+    { company_name: 'Grayscale Investments', ticker: 'GRAY', industry: 'Digital Assets', expected_date: monthsFromNow(8), valuation: '$3B', status: 'filed', exchange: 'NYSE', description: 'Digital asset manager with $35B AUM. Filed IPO paperwork with SEC. (Source: Robinhood IPO Access)' },
+    { company_name: 'DriveWealth', ticker: 'DRWT', industry: 'Fintech', expected_date: monthsFromNow(14), valuation: '$2.9B', status: 'rumored', exchange: 'NASDAQ', description: 'Global fintech infrastructure for fractional investing. CEO targeting IPO as next capital raise. (Source: Futu/Moomoo)' }
   ];
 
   for (const ipo of ipos) {

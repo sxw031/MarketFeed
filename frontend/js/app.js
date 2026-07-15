@@ -4,6 +4,7 @@ const SELECTED_COMPANIES_KEY = 'mf_companies';
 let allNews = [];
 let totalNewsCount = 0;
 let totalNewsPages = 1;
+let resultsCapped = false;
 let availableCompanies = [];
 let selectedCompanies = JSON.parse(localStorage.getItem(SELECTED_COMPANIES_KEY) || '[]');
 let activeTimeRange = null;
@@ -185,6 +186,7 @@ async function loadNews(silent = false, options = {}) {
     totalNewsCount = data.total || allNews.length;
     totalNewsPages = useFullTimeWindow ? 1 : (data.totalPages || 1);
     currentPage = useFullTimeWindow ? 1 : (data.page || currentPage);
+    resultsCapped = useFullTimeWindow && !!data.capped;
     updateResultsSummary(totalNewsCount);
     renderNews();
   } catch (e) {
@@ -275,7 +277,14 @@ function updateResultsSummary(totalItems = 0) {
   const summary = document.getElementById('resultsSummary');
   if (!summary) return;
   const itemLabel = totalItems === 1 ? 'article' : 'articles';
-  summary.textContent = `Showing ${totalItems} ${itemLabel} from ${getTimeRangeLabel(activeTimeRangeKey)}.`;
+  if (resultsCapped) {
+    const shownCount = allNews.length;
+    summary.textContent = `Showing most recent ${shownCount} of ${totalItems} ${itemLabel} from ${getTimeRangeLabel(activeTimeRangeKey)}. Narrow your filters to see more.`;
+  } else if (shouldShowFullTimeWindow()) {
+    summary.textContent = `All ${totalItems} ${itemLabel} shown from ${getTimeRangeLabel(activeTimeRangeKey)}.`;
+  } else {
+    summary.textContent = `Showing ${totalItems} ${itemLabel} from ${getTimeRangeLabel(activeTimeRangeKey)}.`;
+  }
 }
 
 // ==================== SORTING ====================
@@ -608,7 +617,7 @@ function renderYearlySummary(companies, year) {
           </div>
         </div>
         <ul class="yearly-highlights">
-          ${c.highlights.map(h => `<li>${h}</li>`).join('')}
+          ${c.highlights.map(h => `<li>${esc(h)}</li>`).join('')}
         </ul>
       </div>`;
   });
@@ -779,7 +788,7 @@ function setupEventListeners() {
       podcastBtn.classList.remove('loading');
       podcastBtn.querySelector('span').textContent = 'Daily Podcast';
       podcastBtn.disabled = false;
-      alert(`Podcast generation failed: ${e.message}\n\nThis may be due to TTS not being available on the server. Please check Render logs.`);
+      showToast(`Podcast generation failed: ${e.message}. TTS may be unavailable on the server.`, 'error', 5000);
     }
   }
 
@@ -928,7 +937,7 @@ function setupEventListeners() {
     const btn = this;
     const icon = btn.querySelector('i');
     const reportText = document.getElementById('reportContent').innerText;
-    if (!reportText || reportText.includes('Generating')) { alert('Please generate a report first.'); return; }
+    if (!reportText || reportText.includes('Generating')) { showToast('Please generate a report first.', 'info'); return; }
 
     if (btn.classList.contains('playing')) {
       const audio = document.getElementById('reportAudioPlayer');
@@ -969,7 +978,7 @@ function setupEventListeners() {
         throw new Error('TTS not available');
       }
     } catch (e) {
-      alert('Report audio: ' + e.message);
+      showToast('Report audio: ' + e.message, 'error', 5000);
       if (icon) icon.className = 'fas fa-headphones';
       btn.title = 'Listen to report';
       btn.disabled = false;
@@ -979,7 +988,7 @@ function setupEventListeners() {
   // Download report
   bindEventById('downloadReportBtn', 'click', () => {
     const text = document.getElementById('reportContent').innerText;
-    if (!text || text.includes('Generating')) { alert('Please generate a report first.'); return; }
+    if (!text || text.includes('Generating')) { showToast('Please generate a report first.', 'info'); return; }
     const blob = new Blob([text], { type: 'text/plain' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `AlphaFeed_Report_${new Date().toISOString().split('T')[0]}.txt`; a.click();
@@ -1221,9 +1230,9 @@ function renderMarkdown(md) {
     line = line.replace(/^---$/gim, '<hr class="report-divider">');
     // List items
     line = line.replace(/^[\*\-] (.*$)/gim, '<li>$1</li>');
-    // Images and links
-    line = line.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="report-img">');
-    line = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="report-link">$1</a>');
+    // Images and links — validate URL scheme to prevent javascript: URI injection
+    line = line.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => `<img src="${sanitizeUrl(url)}" alt="${alt}" class="report-img">`);
+    line = line.replace(/\[(.*?)\]\((.*?)\)/g, (match, text, url) => `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="report-link">${text}</a>`);
     return line;
   }).join('\n');
   
@@ -1249,13 +1258,34 @@ function showLoading(show) {
   document.getElementById('newsList').style.opacity = show ? '0.4' : '1';
 }
 
+function hasActiveFilters() {
+  const category = document.getElementById('categoryFilter')?.value || '';
+  const source = document.getElementById('sourceFilter')?.value || '';
+  const search = document.getElementById('searchInput')?.value.trim() || '';
+  return Boolean(category || source || search || (selectedCompanies && selectedCompanies.length > 0) || (activeTimeRangeKey && activeTimeRangeKey !== '24h'));
+}
+
 function showEmptyState(show) {
-  document.getElementById('emptyState').style.display = show ? 'block' : 'none';
-  if (show) document.getElementById('newsList').innerHTML = '';
+  const emptyState = document.getElementById('emptyState');
+  emptyState.style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('newsList').innerHTML = '';
+    const title = document.getElementById('emptyStateTitle');
+    const message = document.getElementById('emptyStateMessage');
+    if (title && message) {
+      if (hasActiveFilters()) {
+        title.textContent = 'No matching articles';
+        message.textContent = 'No news matches your current filters. Try widening the time range or clearing some filters.';
+      } else {
+        title.textContent = 'Initializing Feed...';
+        message.textContent = "We're currently aggregating the latest news for your selected companies.";
+      }
+    }
+  }
 }
 
 function formatRelativeTime(str) {
-  if (!str) return '';
+  if (!str) return 'Date unknown';
   let dateStr = String(str).trim();
   const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(dateStr);
   if (!hasExplicitTimezone) {
@@ -1263,7 +1293,7 @@ function formatRelativeTime(str) {
     if (!dateStr.endsWith('Z')) dateStr += 'Z';
   }
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return '';
+  if (isNaN(d.getTime())) return 'Date unknown';
 
   const now = Date.now();
   const diff = now - d.getTime();
@@ -1282,6 +1312,16 @@ function esc(text) {
   const d = document.createElement('div');
   d.textContent = text;
   return d.innerHTML;
+}
+
+// Only allow http/https URLs in dynamically-rendered links/images. This blocks
+// javascript:, data:, and other URI schemes that could otherwise execute
+// arbitrary script when injected via markdown content (e.g. AI chat/report output).
+// Note: the caller has already HTML-escaped the surrounding line, so this only
+// needs to validate the scheme — it must not re-escape (that would double-encode).
+function sanitizeUrl(url) {
+  const trimmed = String(url || '').trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : '#';
 }
 
 // ==================== EMAIL SUBSCRIPTION ====================

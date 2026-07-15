@@ -133,9 +133,14 @@ function mergeUniqueArticles(existing, incoming) {
 }
 
 // --- Source 1: Google News RSS (Primary, most reliable) ---
+// The sync interval (AUTO_SYNC_INTERVAL_MS, default every 6h) means "when:1d" alone
+// could miss articles published between syncs if a run is delayed/skipped. A slightly
+// wider window (configurable) keeps the DB current without re-fetching excessive history.
+const GOOGLE_NEWS_WINDOW_DAYS = Math.max(1, Number.parseInt(process.env.GOOGLE_NEWS_WINDOW_DAYS || '3', 10) || 3);
+
 async function fetchGoogleNewsRSS(company, options = {}) {
   const limit = options.limit || 10;
-  const query = encodeURIComponent(`"${company}" when:1d`);
+  const query = encodeURIComponent(`"${company}" when:${GOOGLE_NEWS_WINDOW_DAYS}d`);
   const url = `https://news.google.com/rss/search?q=${query}&hl=en&gl=US&ceid=US:en`;
 
   try {

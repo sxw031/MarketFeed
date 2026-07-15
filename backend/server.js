@@ -13,6 +13,28 @@ const { startBackgroundSync } = require('./services/backgroundSync');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS: restrict to known origins. In production only the configured
+// production domain(s) are allowed; in development localhost is allowed too.
+// CORS_ALLOWED_ORIGINS can be a comma-separated list to override/extend.
+const DEFAULT_PROD_ORIGINS = ['https://marketfeed.onrender.com'];
+const DEFAULT_DEV_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const configuredOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = configuredOrigins.length > 0
+  ? configuredOrigins
+  : (isProduction ? DEFAULT_PROD_ORIGINS : [...DEFAULT_PROD_ORIGINS, ...DEFAULT_DEV_ORIGINS]);
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser requests (no Origin header, e.g. curl/server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+
 // Security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -26,7 +48,7 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(compression()); // gzip all responses
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 
 // Basic rate limiting (in-memory, per IP)
@@ -77,7 +99,7 @@ app.use('/api/news', newsRoutes);
 app.use('/api/news/ai', createAiRouter({ getNews }));
 
 // ==================== EMAIL SUBSCRIPTION ====================
-const { initSubscriptionTable, subscribe, unsubscribe, getActiveSubscriptions, generateStrategySuggestions } = require('./services/emailService');
+const { initSubscriptionTable, subscribe, unsubscribe, sendDigestEmails } = require('./services/emailService');
 initSubscriptionTable().catch(e => console.error('[Email] Table init error:', e.message));
 
 app.post('/api/subscribe', async (req, res) => {
@@ -104,15 +126,10 @@ app.get('/api/unsubscribe', async (req, res) => {
   }
 });
 
-app.get('/api/subscriptions', async (req, res) => {
-  const { email } = req.query;
-  if (!email) return res.status(400).json({ success: false, error: 'Email required' });
-  const rows = await getActiveSubscriptions('daily');
-  const weekly = await getActiveSubscriptions('weekly');
-  const monthly = await getActiveSubscriptions('monthly');
-  const all = [...rows, ...weekly, ...monthly].filter(r => r.email === email);
-  res.json({ success: true, data: all.length > 0 ? all[0] : null });
-});
+// Note: a previous `/api/subscriptions?email=` lookup endpoint was removed —
+// it allowed anyone who knew (or guessed) an email address to retrieve that
+// user's subscription details (frequency, tracked companies) with no
+// authentication. It was unused by the frontend, so no UI changes needed.
 
 // ==================== IPO TRACKER ====================
 initIPOTable().catch(e => console.error('[IPO] Table init error:', e.message));
@@ -148,7 +165,7 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[AlphaFeed] Running on port ${PORT}`);
-  startBackgroundSync({ aggregateAllNews, getNewsCount, cleanupOldArticles });
+  startBackgroundSync({ aggregateAllNews, getNewsCount, cleanupOldArticles, sendDigestEmails, getNews });
 });
 
 module.exports = app;

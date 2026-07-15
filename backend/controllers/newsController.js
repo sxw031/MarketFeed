@@ -49,6 +49,7 @@ async function getAllNews(req, res) {
       page: page.page,
       pageSize: page.pageSize,
       totalPages: Math.max(1, Math.ceil(page.total / page.pageSize)),
+      capped: !!page.capped,
       data: page.items
     });
   } catch (error) {

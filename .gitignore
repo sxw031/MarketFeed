@@ -11,6 +11,9 @@ yarn-error.log*
 
 # Database
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 data/
 
 # IDE
