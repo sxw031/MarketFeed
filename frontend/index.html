@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>AlphaFeed | Enterprise Strategic Intelligence Platform</title>
-    <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 18 enterprise accounts, generate AI-powered strategy reports, and discover engagement opportunities.">
+    <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 18 enterprise accounts, generate AI-powered Market Intelligence reports, and discover engagement opportunities.">
     <meta name="keywords" content="AlphaFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management">
     <meta name="author" content="AlphaFeed Team">
     <meta name="robots" content="index, follow">
@@ -74,13 +74,9 @@
                     <button id="themeToggle" class="btn-theme" title="Toggle theme">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button id="refreshBtn" class="btn-icon-text btn-refresh" title="Quick Refresh">
+                    <button id="refreshBtn" class="btn-icon-text btn-refresh" title="Sync latest news">
                         <i class="fas fa-bolt"></i>
-                        <span>Refresh</span>
-                    </button>
-                    <button id="fetchAllBtn" class="btn-icon-text btn-outline" title="Fetch All News">
-                        <i class="fas fa-globe"></i>
-                        <span>Fetch All</span>
+                        <span>Sync Latest</span>
                     </button>
                     <button id="subscribeBtn" class="btn-icon-text btn-subscribe" title="Subscribe to Email Digest">
                         <i class="fas fa-envelope"></i>
@@ -180,7 +176,7 @@
                     <div class="filter-actions">
                         <div class="report-dropdown">
                             <button id="generateReportBtn" class="btn-icon-text btn-strategy">
-                                <i class="fas fa-wand-magic-sparkles"></i> <span>Strategy Report</span>
+                                <i class="fas fa-wand-magic-sparkles"></i> <span>Market Intelligence Report</span>
                                 <i class="fas fa-chevron-down" style="font-size:0.6rem;margin-left:4px;opacity:0.7;"></i>
                             </button>
                             <div class="report-dropdown-menu" id="reportDropdownMenu">
@@ -191,7 +187,7 @@
                             </div>
                         </div>
                         <button id="resetBtn" class="btn-icon-text btn-reset">
-                            <i class="fas fa-undo"></i> <span>Reset</span>
+                            <i class="fas fa-undo"></i> <span>Clear Filters</span>
                         </button>
                     </div>
                 </div>
@@ -315,11 +311,11 @@
         </button>
     </div>
 
-    <!-- Strategy Report Modal -->
+    <!-- Market Intelligence Report Modal -->
     <div id="reportModal" class="modal">
         <div class="modal-content report-modal">
             <div class="modal-header">
-                <h2><i class="fas fa-file-contract"></i> Strategic Analysis</h2>
+                <h2><i class="fas fa-file-contract"></i> Market Intelligence Report</h2>
                 <div class="report-header-actions">
                     <button id="listenReportBtn" class="btn-icon-text btn-podcast" title="Listen to report">
                         <i class="fas fa-headphones"></i>
@@ -333,7 +329,7 @@
             <div id="reportContent" class="report-content">
                 <div class="report-loading">
                     <div class="spinner"></div>
-                    <p>Generating strategic analysis...</p>
+                    <p>Generating Market Intelligence report...</p>
                 </div>
             </div>
         </div>

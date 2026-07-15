@@ -5,10 +5,18 @@ let allNews = [];
 let availableCompanies = [];
 let selectedCompanies = JSON.parse(localStorage.getItem(SELECTED_COMPANIES_KEY) || '[]');
 let activeTimeRange = null;
+let activeTimeRangeKey = '24h';
 let currentSort = 'latest'; // 'latest' or 'relevance'
 let pollingTimer = null;
 let currentPage = 1;
 let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
+const TIME_RANGE_WINDOWS = {
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '72h': 72 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+  '1m': 30 * 24 * 60 * 60 * 1000
+};
 
 // Logo URLs - reliable sources for each company
 const LOGO_MAP = {
@@ -68,9 +76,7 @@ const RELEVANCE_KEYWORDS = [
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', async () => {
   // Default: show last 24 hours
-  const now = new Date();
-  now.setHours(now.getHours() - 24);
-  activeTimeRange = now.toISOString();
+  activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
 
   await loadCompanies();
   await loadNews();
@@ -121,7 +127,11 @@ async function loadNews(silent = false) {
   if (!silent) { showLoading(true); currentPage = 1; }
   try {
     let url = `${API_BASE}?limit=300`;
-    if (activeTimeRange) url += `&startDate=${encodeURIComponent(activeTimeRange)}`;
+    activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
+    if (activeTimeRange) {
+      url += `&startDate=${encodeURIComponent(activeTimeRange)}`;
+      url += `&endDate=${encodeURIComponent(new Date().toISOString())}`;
+    }
 
     const category = document.getElementById('categoryFilter').value;
     const source = document.getElementById('sourceFilter').value;
@@ -135,7 +145,7 @@ async function loadNews(silent = false) {
     const res = await fetch(url);
     const data = await res.json();
     if (data.success) {
-      allNews = data.data || [];
+      allNews = applyActiveTimeFilter(data.data || []);
       sortAndRender();
     }
   } catch (e) {
@@ -144,6 +154,33 @@ async function loadNews(silent = false) {
   } finally {
     if (!silent) showLoading(false);
   }
+}
+
+function getTimeRangeStart(rangeKey) {
+  const windowMs = TIME_RANGE_WINDOWS[rangeKey] || TIME_RANGE_WINDOWS['24h'];
+  return new Date(Date.now() - windowMs).toISOString();
+}
+
+function parseArticleDate(input) {
+  if (!input) return null;
+  let dateStr = String(input);
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+    dateStr = dateStr.replace(' ', 'T') + 'Z';
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function applyActiveTimeFilter(news) {
+  if (!Array.isArray(news) || !activeTimeRangeKey) return news || [];
+  const windowMs = TIME_RANGE_WINDOWS[activeTimeRangeKey];
+  if (!windowMs) return news;
+
+  const cutoff = Date.now() - windowMs;
+  return news.filter(article => {
+    const d = parseArticleDate(article.publishedAt);
+    return d ? d.getTime() >= cutoff : false;
+  });
 }
 
 // ==================== SORTING ====================
@@ -315,8 +352,48 @@ function createCard(article) {
 
 function showArticleModal(article) {
   const modal = document.getElementById('articleModal');
-  const body = document.getElementById('modalBody');
   const logo = getLogoUrl(article.company);
+  const fallbackSummary = article.description || 'No summary available for this article yet.';
+  renderArticleModalContent({
+    logo,
+    article,
+    quickSummary: fallbackSummary,
+    articlePreview: 'Loading readable preview...'
+  });
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  loadArticlePreview(article, fallbackSummary)
+    .then(preview => {
+      renderArticleModalContent({
+        logo,
+        article,
+        quickSummary: preview.summary || fallbackSummary,
+        articlePreview: preview.preview || fallbackSummary
+      });
+    })
+    .catch(() => {
+      renderArticleModalContent({
+        logo,
+        article,
+        quickSummary: fallbackSummary,
+        articlePreview: fallbackSummary
+      });
+    });
+}
+
+function renderArticleModalContent({ logo, article, quickSummary, articlePreview }) {
+  const body = document.getElementById('modalBody');
+  const summaryText = (quickSummary || '').trim();
+  const previewText = (articlePreview || '').trim() || summaryText || 'No article text available.';
+  const previewParagraphs = previewText
+    .split(/\n+/)
+    .map(p => p.trim())
+    .filter(Boolean)
+    .slice(0, 6)
+    .map(p => `<p style="margin-bottom:0.8rem;line-height:1.75;color:var(--text-main);">${esc(p)}</p>`)
+    .join('');
+
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:1.5rem;background:var(--bg-secondary);padding:1.5rem;border-radius:12px;">
       <img src="${logo}" alt="${article.company}" style="max-width:140px;height:70px;object-fit:contain;" onerror="handleLogoError(this,'${article.company}')">
@@ -324,18 +401,35 @@ function showArticleModal(article) {
     <h2 style="font-size:1.4rem;margin-bottom:0.75rem;font-weight:800;line-height:1.3;">${esc(article.title)}</h2>
     <div class="news-card-meta" style="margin-bottom:1.25rem;">
       <span class="badge badge-company">${article.company}</span>
-      <span class="badge badge-source">${article.source}</span>
-      <span class="badge badge-category">${article.category}</span>
+      <span class="badge badge-source">${article.source || 'Web'}</span>
+      <span class="badge badge-category">${article.category || 'General'}</span>
       <span class="news-card-date">${formatRelativeTime(article.publishedAt)}</span>
     </div>
-    <p style="font-size:1rem;line-height:1.7;color:var(--text-main);margin-bottom:1.5rem;">${esc(article.description || 'No description available')}</p>
+    <div style="margin-bottom:1rem;padding:1rem;border-radius:12px;background:var(--bg-secondary);">
+      <h3 style="font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 0.6rem;">Quick Summary</h3>
+      <p style="font-size:1rem;line-height:1.7;color:var(--text-main);margin:0;">${esc(summaryText || 'No summary available')}</p>
+    </div>
+    <div style="margin-bottom:1.5rem;">
+      <h3 style="font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin:0 0 0.6rem;">Article Preview</h3>
+      <div>${previewParagraphs || '<p style="line-height:1.7;color:var(--text-main);">No article preview available.</p>'}</div>
+    </div>
     <div style="display:flex;justify-content:center;">
       <a href="${article.url}" target="_blank" rel="noopener" class="btn-source-link">
         View Original Source <i class="fas fa-external-link-alt"></i>
       </a>
     </div>`;
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden';
+}
+
+async function loadArticlePreview(article, fallbackSummary) {
+  const params = new URLSearchParams({
+    url: article.url || '',
+    summary: fallbackSummary || ''
+  });
+  const res = await fetch(`${API_BASE}/article-preview?${params.toString()}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed preview');
+  return data.data || {};
 }
 
 // ==================== YEARLY SUMMARY ====================
@@ -403,9 +497,8 @@ function setupEventListeners() {
     });
   }
 
-  // Refresh & Fetch All
+  // Sync latest news
   document.getElementById('refreshBtn').addEventListener('click', () => triggerAggregation());
-  document.getElementById('fetchAllBtn').addEventListener('click', () => triggerAggregation());
 
   // Filters - auto apply on change
   document.getElementById('categoryFilter').addEventListener('change', () => loadNews());
@@ -436,23 +529,13 @@ function setupEventListeners() {
       // Regular time filter
       document.querySelectorAll('.btn-quick-time:not(.btn-yearly)').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const now = new Date();
-      switch (range) {
-        case '1h': now.setHours(now.getHours() - 1); break;
-        case '6h': now.setHours(now.getHours() - 6); break;
-        case '12h': now.setHours(now.getHours() - 12); break;
-        case '24h': now.setHours(now.getHours() - 24); break;
-        case '48h': now.setHours(now.getHours() - 48); break;
-        case '72h': now.setHours(now.getHours() - 72); break;
-        case '1w': now.setDate(now.getDate() - 7); break;
-        case '1m': now.setMonth(now.getMonth() - 1); break;
-      }
-      activeTimeRange = now.toISOString();
+      activeTimeRangeKey = TIME_RANGE_WINDOWS[range] ? range : '24h';
+      activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
       loadNews();
     });
   });
 
-  // Reset
+  // Clear filters
   document.getElementById('resetBtn').addEventListener('click', () => {
     document.getElementById('categoryFilter').value = '';
     document.getElementById('sourceFilter').value = '';
@@ -461,9 +544,8 @@ function setupEventListeners() {
     const btn24h = document.querySelector('.btn-quick-time[data-range="24h"]');
     if (btn24h) btn24h.classList.add('active');
     selectedCompanies = [];
-    const now = new Date();
-    now.setHours(now.getHours() - 24);
-    activeTimeRange = now.toISOString();
+    activeTimeRangeKey = '24h';
+    activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
     currentSort = 'latest';
     document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
     const latestBtn = document.querySelector('.btn-sort[data-sort="latest"]');
@@ -627,7 +709,7 @@ function setupEventListeners() {
     hidePodcastControls();
   });
 
-  // ==================== STRATEGY REPORT ====================
+  // ==================== MARKET INTELLIGENCE REPORT ====================
   const reportModal = document.getElementById('reportModal');
   // Report dropdown toggle
   const reportDropdown = document.getElementById('reportDropdownMenu');
@@ -644,16 +726,16 @@ function setupEventListeners() {
     btn.addEventListener('click', async () => {
       const period = btn.dataset.period;
       reportDropdown.classList.remove('show');
-      generateStrategyReport(period);
+      generateMarketIntelligenceReport(period);
     });
   });
 
-  async function generateStrategyReport(period = 'daily') {
+  async function generateMarketIntelligenceReport(period = 'daily') {
     const periodLabels = { daily: 'Daily Briefing', weekly: 'Weekly Review', monthly: 'Monthly Assessment', quarterly: 'Quarterly Intelligence' };
     reportModal.style.display = 'block';
     document.body.style.overflow = 'hidden';
     const content = document.getElementById('reportContent');
-    content.innerHTML = `<div class="report-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:250px;"><div class="spinner"></div><p>Generating ${periodLabels[period] || 'strategic analysis'}...</p></div>`;
+    content.innerHTML = `<div class="report-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:250px;"><div class="spinner"></div><p>Generating ${periodLabels[period] || 'Market Intelligence report'}...</p></div>`;
     try {
       // For daily, send current news; for longer periods, backend fetches from DB
       const payload = { period };

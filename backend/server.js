@@ -202,7 +202,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
         answer = `I don't have recent news about **${mentionedCompany}** in your current view.\n\n`;
         answer += `**Quick fixes:**\n`;
         answer += `- Expand the time range to 48h or 1 week\n`;
-        answer += `- Click Refresh to fetch the latest\n`;
+        answer += `- Click Sync Latest to fetch the latest\n`;
         answer += `- Check if ${mentionedCompany} is in your selected companies filter`;
       }
     } else if (isAboutOpportunity) {
@@ -228,12 +228,12 @@ app.post('/api/news/ai/chat', async (req, res) => {
         answer += `**Recommended Actions:**\n`;
         answer += `1. Prioritize the 🔥 Hot accounts for immediate outreach\n`;
         answer += `2. Prepare talking points around their digital initiatives\n`;
-        answer += `3. Generate a Strategy Report for detailed per-account action plans\n`;
+        answer += `3. Generate a Market Intelligence Report for detailed per-account action plans\n`;
       } else {
         answer += `No strong CPaaS/messaging signals detected right now. This is normal — not every news cycle will surface opportunities.\n\n`;
         answer += `**What to do:**\n`;
         answer += `- Expand to 1-week view for broader signal detection\n`;
-        answer += `- Check the Strategy Report for pattern-based recommendations\n`;
+        answer += `- Check the Market Intelligence Report for pattern-based recommendations\n`;
         answer += `- Focus on relationship maintenance with your top accounts`;
       }
     } else if (isAboutTrends) {
@@ -301,7 +301,7 @@ app.post('/api/news/ai/chat', async (req, res) => {
       answer += `2. **This week:** Prepare QBR materials incorporating the latest strategic moves\n`;
       answer += `3. **Ongoing:** Monitor for digital transformation announcements — these are your strongest entry points\n`;
       answer += `4. **Proactive:** Share relevant industry insights with your champions to stay top-of-mind\n\n`;
-      answer += `*Pro tip: Click "Generate Strategy Report" for a detailed, per-account action plan you can share with your team.*`;
+      answer += `*Pro tip: Click "Generate Market Intelligence Report" for a detailed, per-account action plan you can share with your team.*`;
     } else {
       // Smart keyword search with context
       const words = q.split(/\s+/).filter(w => w.length > 2 && !['the', 'and', 'for', 'are', 'was', 'what', 'how', 'why', 'who', 'when', 'where', 'can', 'does', 'about', 'with', 'this', 'that', 'from', 'have', 'has'].includes(w));

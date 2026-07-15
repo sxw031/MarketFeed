@@ -1,6 +1,7 @@
 const { aggregateAllNews, getNews, getNewsCount, getAvailableCompanies, getSources } = require('../services/newsAggregator');
 const { generateYearlySummary } = require('../services/strategyEngine');
 const { generateSpeech, generatePodcastScript, generateReportScript } = require('../services/ttsService');
+const { fetchArticlePreview } = require('../services/articlePreview');
 const { COMPANIES } = require('../config/sources');
 
 // --- Aggregation State ---
@@ -46,6 +47,17 @@ async function getSourcesList(req, res) {
     res.json({ success: true, data: sources });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function getArticlePreview(req, res) {
+  try {
+    const { url, summary } = req.query;
+    const preview = await fetchArticlePreview(url, summary || '');
+    res.json({ success: true, data: preview });
+  } catch (error) {
+    console.error('[API] getArticlePreview error:', error.message);
+    res.status(400).json({ success: false, error: error.message });
   }
 }
 
@@ -184,6 +196,7 @@ module.exports = {
   getAllNews,
   getCompanies,
   getSourcesList,
+  getArticlePreview,
   triggerAggregation,
   getAggregationStatus,
   getPodcast,

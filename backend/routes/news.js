@@ -5,6 +5,7 @@ const ctrl = require('../controllers/newsController');
 router.get('/', ctrl.getAllNews);
 router.get('/companies', ctrl.getCompanies);
 router.get('/sources', ctrl.getSourcesList);
+router.get('/article-preview', ctrl.getArticlePreview);
 router.post('/aggregate', ctrl.triggerAggregation);
 router.get('/aggregation-status', ctrl.getAggregationStatus);
 router.get('/podcast', ctrl.getPodcast);

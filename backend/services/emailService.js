@@ -175,7 +175,7 @@ function generateStrategySuggestions(news) {
   }
 
   // Always add a general action
-  suggestions.push(`Review the full digest on AlphaFeed for deeper analysis and strategy reports.`);
+  suggestions.push(`Review the full digest on AlphaFeed for deeper analysis and Market Intelligence reports.`);
 
   return suggestions.slice(0, 4);
 }
