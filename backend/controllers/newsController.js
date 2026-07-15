@@ -26,6 +26,7 @@ let aggregationState = {
 
 async function getAllNews(req, res) {
   try {
+    const rawPageSize = typeof req.query.pageSize === 'string' ? req.query.pageSize.trim().toLowerCase() : req.query.pageSize;
     const filters = {
       companies: req.query.companies ? req.query.companies.split(',').filter(Boolean) : undefined,
       company: req.query.company,
@@ -36,7 +37,9 @@ async function getAllNews(req, res) {
       search: req.query.search,
       sort: req.query.sort || 'latest',
       page: req.query.page ? parseInt(req.query.page, 10) : 1,
-      pageSize: req.query.pageSize ? parseInt(req.query.pageSize, 10) : 20
+      pageSize: rawPageSize === 'all'
+        ? 'all'
+        : (req.query.pageSize ? parseInt(req.query.pageSize, 10) : 20)
     };
     const page = await getNewsPage(filters);
     res.json({

@@ -207,23 +207,33 @@ async function getNews(filters = {}) {
 }
 
 async function getNewsPage(filters = {}) {
+  const rawPageSize = typeof filters.pageSize === 'string' ? filters.pageSize.trim().toLowerCase() : filters.pageSize;
+  const useAllResults = rawPageSize === 'all';
   const page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
-  const pageSize = Math.min(100, Math.max(10, Number.parseInt(filters.pageSize, 10) || 20));
+  const pageSize = useAllResults
+    ? null
+    : Math.min(100, Math.max(10, Number.parseInt(filters.pageSize, 10) || 20));
   const offset = (page - 1) * pageSize;
   const params = [];
   const whereSql = buildNewsWhere(filters, params);
 
   const countRow = await query.get(`SELECT COUNT(*) as count FROM news${whereSql}`, params);
-  const items = await query.all(
-    `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)} LIMIT ? OFFSET ?`,
-    [...params, pageSize, offset]
-  );
+  const total = countRow?.count || 0;
+  const items = useAllResults
+    ? await query.all(
+      `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)}`,
+      params
+    )
+    : await query.all(
+      `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)} LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
+    );
 
   return {
     items,
-    total: countRow?.count || 0,
-    page,
-    pageSize
+    total,
+    page: useAllResults ? 1 : page,
+    pageSize: useAllResults ? Math.max(total, 1) : pageSize
   };
 }
 

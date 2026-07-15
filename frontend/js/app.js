@@ -163,6 +163,11 @@ function getActiveNewsFilters(overrides = {}) {
   };
 }
 
+function shouldShowFullTimeWindow(rangeKey = activeTimeRangeKey) {
+  const normalizedRangeKey = TIME_RANGE_ALIASES[rangeKey] || rangeKey;
+  return Boolean(TIME_RANGE_WINDOWS[normalizedRangeKey]);
+}
+
 async function loadNews(silent = false, options = {}) {
   if (options.resetPage) currentPage = 1;
   if (!silent) showLoading(true);
@@ -170,15 +175,16 @@ async function loadNews(silent = false, options = {}) {
   if (activeNewsAbortController) activeNewsAbortController.abort();
   activeNewsAbortController = new AbortController();
   try {
+    const useFullTimeWindow = shouldShowFullTimeWindow();
     const data = await window.MarketFeedApi.fetchNewsPage(
-      getActiveNewsFilters(),
+      getActiveNewsFilters(useFullTimeWindow ? { page: 1, pageSize: 'all' } : {}),
       { signal: activeNewsAbortController.signal }
     );
     if (requestId !== activeNewsRequestId) return;
     allNews = data.data || [];
     totalNewsCount = data.total || allNews.length;
-    totalNewsPages = data.totalPages || 1;
-    currentPage = data.page || currentPage;
+    totalNewsPages = useFullTimeWindow ? 1 : (data.totalPages || 1);
+    currentPage = useFullTimeWindow ? 1 : (data.page || currentPage);
     updateResultsSummary(totalNewsCount);
     renderNews();
   } catch (e) {
@@ -390,17 +396,19 @@ function renderNews() {
   const list = document.getElementById('newsList');
   if (allNews.length === 0) { showEmptyState(true); hidePagination(); return; }
   showEmptyState(false);
+  const useFullTimeWindow = shouldShowFullTimeWindow();
   const totalItems = totalNewsCount || allNews.length;
   const totalPages = totalNewsPages || 1;
-  const startIdx = totalItems === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-  const endIdx = totalItems === 0 ? 0 : Math.min(((currentPage - 1) * pageSize) + allNews.length, totalItems);
+  const startIdx = totalItems === 0 ? 0 : (useFullTimeWindow ? 1 : (((currentPage - 1) * pageSize) + 1));
+  const endIdx = totalItems === 0 ? 0 : (useFullTimeWindow ? allNews.length : Math.min(((currentPage - 1) * pageSize) + allNews.length, totalItems));
 
   list.innerHTML = allNews.map(a => createCard(a)).join('');
   list.querySelectorAll('.news-card').forEach(card => {
     card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
   });
 
-  renderPagination(totalItems, totalPages, startIdx, endIdx);
+  if (useFullTimeWindow) hidePagination();
+  else renderPagination(totalItems, totalPages, startIdx, endIdx);
   // Scroll to top of news list on page change
   list.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
