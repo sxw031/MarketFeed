@@ -78,8 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Default: show last 24 hours
   activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
 
-  await loadCompanies();
-  await loadNews();
+  // Set up event listeners immediately so all buttons work before data loads
   setupEventListeners();
 
   // Theme
@@ -88,6 +87,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const icon = document.querySelector('#themeToggle i');
     if (icon) icon.className = 'fas fa-sun';
   }
+
+  await loadCompanies();
+  await loadNews();
 });
 
 // ==================== DATA LOADING ====================
@@ -332,8 +334,13 @@ function createCard(article) {
   const relevanceScore = calculateRelevance(article);
   const relevanceDot = relevanceScore >= 8 ? '<span class="relevance-dot high" title="High relevance"></span>' :
                        relevanceScore >= 4 ? '<span class="relevance-dot medium" title="Medium relevance"></span>' : '';
+  const articleJson = JSON.stringify(article)
+    .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
   return `
-    <div class="news-card ${isStrategic ? 'strategic' : ''}" data-article='${JSON.stringify(article).replace(/'/g, "&#39;")}'>
+    <div class="news-card ${isStrategic ? 'strategic' : ''}" data-article='${articleJson}'>
       <div class="news-card-image-container">
         <img src="${logo}" alt="${article.company}" class="news-card-logo" loading="lazy" onerror="handleLogoError(this,'${article.company}')">
       </div>
@@ -365,6 +372,7 @@ function showArticleModal(article) {
 
   loadArticlePreview(article)
     .then(preview => {
+      if (modal.style.display !== 'block') return; // modal closed before preview loaded
       renderArticleModalContent({
         logo,
         article,
@@ -373,6 +381,7 @@ function showArticleModal(article) {
       });
     })
     .catch(() => {
+      if (modal.style.display !== 'block') return;
       renderArticleModalContent({
         logo,
         article,
@@ -414,7 +423,7 @@ function renderArticleModalContent({ logo, article, quickSummary, articlePreview
       <div>${previewParagraphs || '<p style="line-height:1.7;color:var(--text-main);">No article preview available.</p>'}</div>
     </div>
     <div style="display:flex;justify-content:center;">
-      <a href="${article.url}" target="_blank" rel="noopener" class="btn-source-link">
+      <a href="${esc(article.url)}" target="_blank" rel="noopener" class="btn-source-link">
         View Original Source <i class="fas fa-external-link-alt"></i>
       </a>
     </div>`;
@@ -424,11 +433,17 @@ async function loadArticlePreview(article) {
   const params = new URLSearchParams({
     articleId: String(article.id || '')
   });
-  const res = await fetch(`${API_BASE}/article-preview?${params.toString()}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Failed preview');
-  return data.data || {};
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`${API_BASE}/article-preview?${params.toString()}`, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed preview');
+    return data.data || {};
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ==================== YEARLY SUMMARY ====================
