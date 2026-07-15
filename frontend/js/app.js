@@ -129,11 +129,10 @@ async function loadNews(silent = false) {
   if (!silent) { showLoading(true); currentPage = 1; }
   try {
     let url = `${API_BASE}?limit=300`;
-    activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
-    if (activeTimeRange) {
-      url += `&startDate=${encodeURIComponent(activeTimeRange)}`;
-      url += `&endDate=${encodeURIComponent(new Date().toISOString())}`;
-    }
+    const { startDate, endDate } = getTimeRangeBounds(activeTimeRangeKey);
+    activeTimeRange = startDate;
+    url += `&startDate=${encodeURIComponent(startDate)}`;
+    url += `&endDate=${encodeURIComponent(endDate)}`;
 
     const category = document.getElementById('categoryFilter').value;
     const source = document.getElementById('sourceFilter').value;
@@ -159,8 +158,33 @@ async function loadNews(silent = false) {
 }
 
 function getTimeRangeStart(rangeKey) {
-  const windowMs = TIME_RANGE_WINDOWS[rangeKey] || TIME_RANGE_WINDOWS['24h'];
-  return new Date(Date.now() - windowMs).toISOString();
+  const { startDate } = getTimeRangeBounds(rangeKey);
+  return startDate;
+}
+
+function getTimeRangeBounds(rangeKey) {
+  const now = new Date();
+  const windowMs = TIME_RANGE_WINDOWS[rangeKey];
+  if (windowMs) {
+    return {
+      startDate: new Date(Date.now() - windowMs).toISOString(),
+      endDate: now.toISOString()
+    };
+  }
+
+  const year = Number(rangeKey);
+  if (Number.isInteger(year) && String(rangeKey).length === 4) {
+    const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+    const end = year === now.getUTCFullYear()
+      ? now
+      : new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0));
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  }
+
+  return {
+    startDate: new Date(Date.now() - TIME_RANGE_WINDOWS['24h']).toISOString(),
+    endDate: now.toISOString()
+  };
 }
 
 function parseArticleDate(input) {
@@ -175,13 +199,15 @@ function parseArticleDate(input) {
 
 function applyActiveTimeFilter(news) {
   if (!Array.isArray(news) || !activeTimeRangeKey) return news || [];
-  const windowMs = TIME_RANGE_WINDOWS[activeTimeRangeKey];
-  if (!windowMs) return news;
+  const { startDate, endDate } = getTimeRangeBounds(activeTimeRangeKey);
+  const startTs = Date.parse(startDate);
+  const endTs = Date.parse(endDate);
 
-  const cutoff = Date.now() - windowMs;
   return news.filter(article => {
     const d = parseArticleDate(article.publishedAt);
-    return d ? d.getTime() >= cutoff : false;
+    if (!d) return false;
+    const ts = d.getTime();
+    return ts >= startTs && ts <= endTs;
   });
 }
 
@@ -367,12 +393,12 @@ function showArticleModal(article) {
     quickSummary: fallbackSummary,
     articlePreview: 'Loading readable preview...'
   });
-  modal.style.display = 'block';
+  modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
   loadArticlePreview(article)
     .then(preview => {
-      if (modal.style.display !== 'block') return; // modal closed before preview loaded
+      if (modal.style.display === 'none') return; // modal closed before preview loaded
       renderArticleModalContent({
         logo,
         article,
@@ -381,7 +407,7 @@ function showArticleModal(article) {
       });
     })
     .catch(() => {
-      if (modal.style.display !== 'block') return;
+      if (modal.style.display === 'none') return;
       renderArticleModalContent({
         logo,
         article,
@@ -454,7 +480,7 @@ async function showYearlySummary(year) {
 
   title.textContent = year === 2026 ? `2026 Year-to-Date (as of ${new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'})})` : `${year} Major Events Summary`;
   content.innerHTML = '<div style="text-align:center;padding:3rem;"><div class="spinner"></div><p>Loading summary...</p></div>';
-  modal.style.display = 'block';
+  modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
   try {
@@ -498,6 +524,19 @@ function renderYearlySummary(companies, year) {
   return html;
 }
 
+function bindEventById(id, eventName, handler) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  el.addEventListener(eventName, handler);
+  return el;
+}
+
+function setModalOpen(modalEl, isOpen) {
+  if (!modalEl) return;
+  modalEl.style.display = isOpen ? 'flex' : 'none';
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+}
+
 // ==================== EVENT LISTENERS ====================
 function setupEventListeners() {
   // Mobile menu toggle
@@ -505,19 +544,20 @@ function setupEventListeners() {
   const navRight = document.getElementById('navRight');
   if (mobileToggle) {
     mobileToggle.addEventListener('click', () => {
+      if (!navRight) return;
       navRight.classList.toggle('mobile-open');
       const icon = mobileToggle.querySelector('i');
-      icon.className = navRight.classList.contains('mobile-open') ? 'fas fa-times' : 'fas fa-bars';
+      if (icon) icon.className = navRight.classList.contains('mobile-open') ? 'fas fa-times' : 'fas fa-bars';
     });
   }
 
   // Sync latest news
-  document.getElementById('refreshBtn').addEventListener('click', () => triggerAggregation());
+  bindEventById('refreshBtn', 'click', () => triggerAggregation());
 
   // Filters - auto apply on change
-  document.getElementById('categoryFilter').addEventListener('change', () => loadNews());
-  document.getElementById('sourceFilter').addEventListener('change', () => loadNews());
-  document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') loadNews(); });
+  bindEventById('categoryFilter', 'change', () => loadNews());
+  bindEventById('sourceFilter', 'change', () => loadNews());
+  bindEventById('searchInput', 'keypress', (e) => { if (e.key === 'Enter') loadNews(); });
 
   // Sort buttons
   document.querySelectorAll('.btn-sort').forEach(btn => {
@@ -533,27 +573,23 @@ function setupEventListeners() {
   document.querySelectorAll('.btn-quick-time').forEach(btn => {
     btn.addEventListener('click', () => {
       const range = btn.dataset.range;
-
-      // Year buttons -> show yearly summary modal
-      if (['2023', '2024', '2025', '2026'].includes(range)) {
-        showYearlySummary(parseInt(range));
-        return;
-      }
-
-      // Regular time filter
-      document.querySelectorAll('.btn-quick-time:not(.btn-yearly)').forEach(b => b.classList.remove('active'));
+      const isKnownRange = Boolean(TIME_RANGE_WINDOWS[range]) || /^\d{4}$/.test(range || '');
+      activeTimeRangeKey = isKnownRange ? range : '24h';
+      document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeTimeRangeKey = TIME_RANGE_WINDOWS[range] ? range : '24h';
       activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
       loadNews();
     });
   });
 
   // Clear filters
-  document.getElementById('resetBtn').addEventListener('click', () => {
-    document.getElementById('categoryFilter').value = '';
-    document.getElementById('sourceFilter').value = '';
-    document.getElementById('searchInput').value = '';
+  bindEventById('resetBtn', 'click', () => {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const searchInput = document.getElementById('searchInput');
+    if (categoryFilter) categoryFilter.value = '';
+    if (sourceFilter) sourceFilter.value = '';
+    if (searchInput) searchInput.value = '';
     document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
     const btn24h = document.querySelector('.btn-quick-time[data-range="24h"]');
     if (btn24h) btn24h.classList.add('active');
@@ -570,33 +606,30 @@ function setupEventListeners() {
   });
 
   // Logo click -> home
-  document.querySelector('.logo').addEventListener('click', (e) => {
+  document.querySelector('.logo')?.addEventListener('click', (e) => {
     e.preventDefault();
-    document.getElementById('resetBtn').click();
+    document.getElementById('resetBtn')?.click();
   });
 
   // Company selector
   const selectorModal = document.getElementById('companySelectorModal');
-  document.getElementById('openCompanySelector').addEventListener('click', () => {
-    selectorModal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+  bindEventById('openCompanySelector', 'click', () => {
+    setModalOpen(selectorModal, true);
   });
-  document.getElementById('closeSelector').addEventListener('click', () => {
-    selectorModal.style.display = 'none';
-    document.body.style.overflow = '';
+  bindEventById('closeSelector', 'click', () => {
+    setModalOpen(selectorModal, false);
   });
-  document.getElementById('applySelectorBtn').addEventListener('click', () => {
+  bindEventById('applySelectorBtn', 'click', () => {
     selectedCompanies = Array.from(document.querySelectorAll('.company-item.selected')).map(el => el.dataset.company);
     localStorage.setItem(SELECTED_COMPANIES_KEY, JSON.stringify(selectedCompanies));
-    selectorModal.style.display = 'none';
-    document.body.style.overflow = '';
+    setModalOpen(selectorModal, false);
     updateSelectionLabel();
     loadNews();
   });
-  document.getElementById('selectAllBtn').addEventListener('click', () => {
+  bindEventById('selectAllBtn', 'click', () => {
     document.querySelectorAll('.company-item').forEach(el => el.classList.add('selected'));
   });
-  document.getElementById('deselectAllBtn').addEventListener('click', () => {
+  bindEventById('deselectAllBtn', 'click', () => {
     document.querySelectorAll('.company-item').forEach(el => el.classList.remove('selected'));
   });
 
@@ -647,30 +680,32 @@ function setupEventListeners() {
     }
   }
 
-  podcastBtn.addEventListener('click', async () => {
-    // If already playing, pause
-    if (podcastBtn.classList.contains('playing')) {
-      podcastPlayer.pause();
-      podcastBtn.classList.remove('playing');
-      podcastBtn.querySelector('span').textContent = 'Daily Podcast';
-      return;
-    }
-    // Show speed picker - user selects speed, then we generate
-    const podcastSpeedPickerEl = document.getElementById('podcastSpeedPicker');
-    if (podcastSpeedPickerEl && podcastSpeedPickerEl.style.display !== 'flex') {
-      podcastSpeedPickerEl.style.display = 'flex';
-      // Wait for speed selection or auto-generate after a timeout
-      const waitForSelection = new Promise(resolve => {
-        const btns = podcastSpeedPickerEl.querySelectorAll('.btn-speed[data-speed]');
-        const handler = () => { resolve(); btns.forEach(b => b.removeEventListener('click', handler)); };
-        btns.forEach(b => b.addEventListener('click', handler, { once: true }));
-        // Auto-generate at normal speed after 5 seconds if no selection
-        setTimeout(() => { podcastSpeedPickerEl.style.display = 'none'; resolve(); }, 5000);
-      });
-      await waitForSelection;
-    }
-    await generatePodcast();
-  });
+  if (podcastBtn && podcastPlayer) {
+    podcastBtn.addEventListener('click', async () => {
+      // If already playing, pause
+      if (podcastBtn.classList.contains('playing')) {
+        podcastPlayer.pause();
+        podcastBtn.classList.remove('playing');
+        podcastBtn.querySelector('span').textContent = 'Daily Podcast';
+        return;
+      }
+      // Show speed picker - user selects speed, then we generate
+      const podcastSpeedPickerEl = document.getElementById('podcastSpeedPicker');
+      if (podcastSpeedPickerEl && podcastSpeedPickerEl.style.display !== 'flex') {
+        podcastSpeedPickerEl.style.display = 'flex';
+        // Wait for speed selection or auto-generate after a timeout
+        const waitForSelection = new Promise(resolve => {
+          const btns = podcastSpeedPickerEl.querySelectorAll('.btn-speed[data-speed]');
+          const handler = () => { resolve(); btns.forEach(b => b.removeEventListener('click', handler)); };
+          btns.forEach(b => b.addEventListener('click', handler, { once: true }));
+          // Auto-generate at normal speed after 5 seconds if no selection
+          setTimeout(() => { podcastSpeedPickerEl.style.display = 'none'; resolve(); }, 5000);
+        });
+        await waitForSelection;
+      }
+      await generatePodcast();
+    });
+  }
 
   // ==================== PODCAST SPEED CONTROLS ====================
   const podcastControls = document.getElementById('podcastControls');
@@ -700,11 +735,11 @@ function setupEventListeners() {
       btn.classList.add('active');
       hideSpeedPicker();
       // Apply speed to player
-      podcastPlayer.playbackRate = selectedPodcastSpeed;
+      if (podcastPlayer) podcastPlayer.playbackRate = selectedPodcastSpeed;
     });
   });
 
-  if (stopBtn) {
+  if (stopBtn && podcastBtn && podcastPlayer) {
     stopBtn.addEventListener('click', () => {
       podcastPlayer.pause();
       podcastPlayer.currentTime = 0;
@@ -715,39 +750,40 @@ function setupEventListeners() {
   }
 
   // Show stop control when playing, hide when ended
-  podcastPlayer.addEventListener('play', () => {
-    showPodcastControls();
-    podcastPlayer.playbackRate = selectedPodcastSpeed;
-  });
-  podcastPlayer.addEventListener('ended', () => {
-    hidePodcastControls();
-  });
+  if (podcastPlayer) {
+    podcastPlayer.addEventListener('play', () => {
+      showPodcastControls();
+      podcastPlayer.playbackRate = selectedPodcastSpeed;
+    });
+    podcastPlayer.addEventListener('ended', () => {
+      hidePodcastControls();
+    });
+  }
 
   // ==================== MARKET INTELLIGENCE REPORT ====================
   const reportModal = document.getElementById('reportModal');
   // Report dropdown toggle
   const reportDropdown = document.getElementById('reportDropdownMenu');
-  document.getElementById('generateReportBtn').addEventListener('click', (e) => {
+  bindEventById('generateReportBtn', 'click', (e) => {
     e.stopPropagation();
-    reportDropdown.classList.toggle('show');
+    reportDropdown?.classList.toggle('show');
   });
   // Close dropdown when clicking outside
-  document.addEventListener('click', () => reportDropdown.classList.remove('show'));
-  reportDropdown.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => reportDropdown?.classList.remove('show'));
+  reportDropdown?.addEventListener('click', (e) => e.stopPropagation());
 
   // Handle period selection
   document.querySelectorAll('.report-period-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const period = btn.dataset.period;
-      reportDropdown.classList.remove('show');
+      reportDropdown?.classList.remove('show');
       generateMarketIntelligenceReport(period);
     });
   });
 
   async function generateMarketIntelligenceReport(period = 'daily') {
     const periodLabels = { daily: 'Daily Briefing', weekly: 'Weekly Review', monthly: 'Monthly Assessment', quarterly: 'Quarterly Intelligence' };
-    reportModal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    setModalOpen(reportModal, true);
     const content = document.getElementById('reportContent');
     content.innerHTML = `<div class="report-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:250px;"><div class="spinner"></div><p>Generating ${periodLabels[period] || 'Market Intelligence report'}...</p></div>`;
     try {
@@ -772,11 +808,12 @@ function setupEventListeners() {
       content.innerHTML = '<p style="text-align:center;padding:2rem;">Error generating report. Please try again.</p>';
     }
   }
-  document.getElementById('closeReportModal').addEventListener('click', () => { reportModal.style.display = 'none'; document.body.style.overflow = ''; });
+  bindEventById('closeReportModal', 'click', () => setModalOpen(reportModal, false));
 
   // Listen to report button
-  document.getElementById('listenReportBtn').addEventListener('click', async function() {
+  bindEventById('listenReportBtn', 'click', async function() {
     const btn = this;
+    const icon = btn.querySelector('i');
     const reportText = document.getElementById('reportContent').innerText;
     if (!reportText || reportText.includes('Generating')) { alert('Please generate a report first.'); return; }
 
@@ -784,11 +821,13 @@ function setupEventListeners() {
       const audio = document.getElementById('reportAudioPlayer');
       if (audio) audio.pause();
       btn.classList.remove('playing');
-      btn.querySelector('span').textContent = 'Listen';
+      if (icon) icon.className = 'fas fa-headphones';
+      btn.title = 'Listen to report';
       return;
     }
 
-    btn.querySelector('span').textContent = 'Synthesizing...';
+    if (icon) icon.className = 'fas fa-spinner fa-spin';
+    btn.title = 'Synthesizing report audio...';
     btn.disabled = true;
     try {
       const res = await fetch('/api/news/report-speech', {
@@ -805,21 +844,27 @@ function setupEventListeners() {
         audio.src = URL.createObjectURL(blob);
         await audio.play();
         btn.classList.add('playing');
-        btn.querySelector('span').textContent = 'Playing...';
+        if (icon) icon.className = 'fas fa-volume-up';
+        btn.title = 'Playing report audio';
         btn.disabled = false;
-        audio.onended = () => { btn.classList.remove('playing'); btn.querySelector('span').textContent = 'Listen'; };
+        audio.onended = () => {
+          btn.classList.remove('playing');
+          if (icon) icon.className = 'fas fa-headphones';
+          btn.title = 'Listen to report';
+        };
       } else {
         throw new Error('TTS not available');
       }
     } catch (e) {
       alert('Report audio: ' + e.message);
-      btn.querySelector('span').textContent = 'Listen';
+      if (icon) icon.className = 'fas fa-headphones';
+      btn.title = 'Listen to report';
       btn.disabled = false;
     }
   });
 
   // Download report
-  document.getElementById('downloadReportBtn').addEventListener('click', () => {
+  bindEventById('downloadReportBtn', 'click', () => {
     const text = document.getElementById('reportContent').innerText;
     if (!text || text.includes('Generating')) { alert('Please generate a report first.'); return; }
     const blob = new Blob([text], { type: 'text/plain' });
@@ -828,17 +873,15 @@ function setupEventListeners() {
   });
 
   // Yearly Summary Modal close
-  document.getElementById('closeYearlyModal').addEventListener('click', () => {
-    document.getElementById('yearlySummaryModal').style.display = 'none';
-    document.body.style.overflow = '';
-  });
+  bindEventById('closeYearlyModal', 'click', () => setModalOpen(document.getElementById('yearlySummaryModal'), false));
 
   // ==================== AI CHAT ====================
   const chatWindow = document.getElementById('aiChatWindow');
-  document.getElementById('aiChatToggle').addEventListener('click', () => {
+  bindEventById('aiChatToggle', 'click', () => {
+    if (!chatWindow) return;
     chatWindow.style.display = chatWindow.style.display === 'none' ? 'flex' : 'none';
   });
-  document.getElementById('closeAiChat').addEventListener('click', () => { chatWindow.style.display = 'none'; });
+  bindEventById('closeAiChat', 'click', () => { if (chatWindow) chatWindow.style.display = 'none'; });
 
   async function handleChat() {
     const input = document.getElementById('aiChatInput');
@@ -854,29 +897,31 @@ function setupEventListeners() {
         body: JSON.stringify({ query: q, context: allNews.slice(0, 50) })
       });
       const data = await res.json();
-      botMsg.innerHTML = renderMarkdown(data.answer || 'No answer available.').replace('<div class="report-body">', '<div>');
+      const answer = data.success === false ? (data.error || 'AI service is unavailable right now.') : (data.answer || 'No answer available.');
+      botMsg.innerHTML = renderMarkdown(answer).replace('<div class="report-body">', '<div>');
     } catch (e) { botMsg.textContent = 'Connection error. Please try again.'; }
   }
-  document.getElementById('sendAiMessage').addEventListener('click', handleChat);
-  document.getElementById('aiChatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleChat(); });
+  bindEventById('sendAiMessage', 'click', handleChat);
+  bindEventById('aiChatInput', 'keypress', (e) => { if (e.key === 'Enter') handleChat(); });
 
   // Theme toggle
-  document.getElementById('themeToggle').addEventListener('click', () => {
+  bindEventById('themeToggle', 'click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
-    document.querySelector('#themeToggle i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    const themeIcon = document.querySelector('#themeToggle i');
+    if (themeIcon) themeIcon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   });
 
   // ==================== PAGINATION ====================
-  document.getElementById('prevPage').addEventListener('click', () => {
+  bindEventById('prevPage', 'click', () => {
     if (currentPage > 1) { currentPage--; renderNews(); }
   });
-  document.getElementById('nextPage').addEventListener('click', () => {
+  bindEventById('nextPage', 'click', () => {
     const totalPages = Math.ceil(allNews.length / pageSize);
     if (currentPage < totalPages) { currentPage++; renderNews(); }
   });
-  document.getElementById('pageNumbers').addEventListener('click', (e) => {
+  bindEventById('pageNumbers', 'click', (e) => {
     const btn = e.target.closest('.btn-page-num');
     if (btn) { currentPage = parseInt(btn.dataset.page); renderNews(); }
   });
@@ -891,10 +936,10 @@ function setupEventListeners() {
 
   // Modal close handlers
   const articleModal = document.getElementById('articleModal');
-  document.getElementById('closeModal').addEventListener('click', () => { articleModal.style.display = 'none'; document.body.style.overflow = ''; });
+  bindEventById('closeModal', 'click', () => setModalOpen(articleModal, false));
   window.addEventListener('click', (e) => {
-    [selectorModal, articleModal, reportModal, document.getElementById('yearlySummaryModal')].forEach(m => {
-      if (e.target === m) { m.style.display = 'none'; document.body.style.overflow = ''; }
+    [selectorModal, articleModal, reportModal, document.getElementById('yearlySummaryModal'), document.getElementById('subscribeModal')].forEach(m => {
+      if (e.target === m) setModalOpen(m, false);
     });
   });
 }
@@ -1056,7 +1101,7 @@ function renderMarkdown(md) {
     line = line.replace(/^[\*\-] (.*$)/gim, '<li>$1</li>');
     // Images and links
     line = line.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="report-img">');
-    line = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="report-link">$1</a>');
+    line = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="report-link">$1</a>');
     return line;
   }).join('\n');
   
