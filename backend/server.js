@@ -119,8 +119,8 @@ app.post('/api/news/ai/strategy', async (req, res) => {
 // AI Chat - Smart heuristic Q&A for account managers
 app.post('/api/news/ai/chat', async (req, res) => {
   try {
-    const { query, context } = req.body;
-    const answer = generateChatAnswer(query, context);
+    const { query, context, history } = req.body;
+    const answer = generateChatAnswer(query, context, Array.isArray(history) ? history.slice(-10) : []);
     res.json({ success: true, answer });
   } catch (error) {
     console.error('[AI Chat]', error.message);

@@ -14,11 +14,38 @@ const ENGAGEMENT_KEYWORDS = ['messaging', 'communication', 'api', 'digital', 'pl
 const RISK_KEYWORDS = ['layoff', 'cut', 'decline', 'loss', 'fine', 'penalty', 'lawsuit', 'investigation', 'breach', 'hack', 'downturn', 'restructur', 'close', 'shut'];
 const STOP_WORDS = ['the', 'and', 'for', 'are', 'was', 'what', 'how', 'why', 'who', 'when', 'where', 'can', 'does', 'about', 'with', 'this', 'that', 'from', 'have', 'has'];
 
+// Words that mean "keep talking about the same subject as before" so a
+// multi-turn conversation doesn't force the user to repeat the company name.
+const FOLLOWUP_WORDS = ['it', 'them', 'they', 'that', 'this one', 'the company', 'same', 'also', 'and them', 'what about'];
+
+function findMentionedCompanies(q) {
+  const found = new Set();
+  COMPANY_NAMES.forEach(c => { if (q.includes(c.toLowerCase())) found.add(c); });
+  Object.keys(COMPANY_ALIASES).forEach(a => { if (q.includes(a)) found.add(COMPANY_ALIASES[a]); });
+  return [...found];
+}
+
 function findMentionedCompany(q) {
-  const direct = COMPANY_NAMES.find(c => q.includes(c.toLowerCase()));
-  if (direct) return direct;
-  const matchedAlias = Object.keys(COMPANY_ALIASES).find(a => q.includes(a));
-  return matchedAlias ? COMPANY_ALIASES[matchedAlias] : null;
+  return findMentionedCompanies(q)[0] || null;
+}
+
+function isFollowUpQuery(q) {
+  const trimmed = q.trim();
+  if (trimmed.split(/\s+/).length <= 6 && FOLLOWUP_WORDS.some(w => trimmed.includes(w))) return true;
+  return false;
+}
+
+/** Find the most recently discussed company in the conversation history. */
+function lastMentionedCompanyFromHistory(history) {
+  if (!Array.isArray(history)) return null;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const turn = history[i];
+    if (!turn || !turn.content) continue;
+    const q = String(turn.content).toLowerCase();
+    const found = findMentionedCompany(q);
+    if (found) return found;
+  }
+  return null;
 }
 
 function detectIntent(query) {
@@ -27,7 +54,10 @@ function detectIntent(query) {
     isAboutOpportunity: /opportunity|csm|engagement|outreach|upsell|cross.sell|prospect|pipeline/i.test(query),
     isAboutRisk: /risk|threat|concern|problem|issue|challenge|warning|negative/i.test(query),
     isAboutStrategy: /strategy|recommend|suggest|action|next step|what should|how to|approach/i.test(query),
-    isGreeting: /^(hi|hello|hey|good morning|good afternoon|sup|yo)\b/i.test(query.trim())
+    isGreeting: /^(hi|hello|hey|good morning|good afternoon|sup|yo)\b/i.test(query.trim()),
+    // "Deep think" mode: the user wants a thorough, multi-angle analysis
+    // rather than a single quick answer (comparisons, "why", "deep dive"...).
+    isDeepThink: /deep\s*dive|deep\s*think|analy[sz]e|in[- ]depth|comprehensive|compare|vs\.?\s|versus|why (is|are|did|does)|thorough/i.test(query)
   };
 }
 
@@ -237,23 +267,109 @@ function buildSearchAnswer(query, q, news) {
   return answer;
 }
 
+function buildComparisonAnswer(companies, news) {
+  let answer = `## \u2696\ufe0f Comparison: ${companies.join(' vs ')}\n\n`;
+  const perCompany = companies.map(co => {
+    const coNews = news.filter(n => n.company === co);
+    const strategic = coNews.filter(n => n.category === 'Strategic Insights').length;
+    const risk = coNews.filter(n => RISK_KEYWORDS.some(kw => ((n.title || '') + (n.description || '')).toLowerCase().includes(kw))).length;
+    const engagement = coNews.filter(n => ENGAGEMENT_KEYWORDS.some(kw => ((n.title || '') + (n.description || '')).toLowerCase().includes(kw))).length;
+    return { co, coNews, strategic, risk, engagement };
+  });
+
+  answer += `| Company | Articles | Strategic | Risk signals | Engagement signals |\n|---|---|---|---|---|\n`;
+  perCompany.forEach(p => {
+    answer += `| **${p.co}** | ${p.coNews.length} | ${p.strategic} | ${p.risk} | ${p.engagement} |\n`;
+  });
+
+  const strongest = [...perCompany].sort((a, b) => b.engagement - a.engagement)[0];
+  answer += `\n### Takeaway\n`;
+  if (strongest && strongest.engagement > 0) {
+    answer += `**${strongest.co}** currently shows the strongest engagement signal (${strongest.engagement} matching articles) \u2014 prioritize outreach there first. `;
+  }
+  const riskiest = [...perCompany].sort((a, b) => b.risk - a.risk)[0];
+  if (riskiest && riskiest.risk > 0) {
+    answer += `**${riskiest.co}** has ${riskiest.risk} risk signal${riskiest.risk > 1 ? 's' : ''} \u2014 approach with care and focus on value reinforcement.`;
+  }
+  return answer;
+}
+
+/**
+ * "Deep think" mode: combine trend, risk, opportunity and strategy analysis
+ * into one multi-step chain of reasoning instead of a single quick answer.
+ * Triggered for complex questions (comparisons, "why", "deep dive", etc.).
+ */
+function buildDeepThinkAnswer(query, news, mentionedCompany) {
+  const scoped = mentionedCompany ? news.filter(n => n.company === mentionedCompany) : news;
+  const subject = mentionedCompany || 'your portfolio';
+
+  let answer = `## \ud83e\udde0 Deep Think: ${subject}\n\n`;
+  answer += `*Working through this in steps rather than a single answer, since it's a complex question.*\n\n`;
+
+  answer += `### 1. Situation\n`;
+  answer += `${scoped.length} relevant article${scoped.length === 1 ? '' : 's'} in the current view`;
+  answer += mentionedCompany ? ` about **${mentionedCompany}**.\n\n` : ` across your tracked companies.\n\n`;
+
+  const strategic = scoped.filter(n => n.category === 'Strategic Insights');
+  const risks = scoped.filter(n => RISK_KEYWORDS.some(kw => ((n.title || '') + (n.description || '')).toLowerCase().includes(kw)));
+  const engagement = scoped.filter(n => ENGAGEMENT_KEYWORDS.some(kw => ((n.title || '') + (n.description || '')).toLowerCase().includes(kw)));
+
+  answer += `### 2. Analysis\n`;
+  answer += `- **Strategic activity:** ${strategic.length} item${strategic.length === 1 ? '' : 's'}${strategic[0] ? ` (e.g. "${strategic[0].title.substring(0, 70)}")` : ''}\n`;
+  answer += `- **Risk signals:** ${risks.length}${risks[0] ? ` (e.g. "${risks[0].title.substring(0, 70)}")` : ' \u2014 none detected'}\n`;
+  answer += `- **Engagement signals:** ${engagement.length}${engagement[0] ? ` (e.g. "${engagement[0].title.substring(0, 70)}")` : ' \u2014 none detected'}\n\n`;
+
+  answer += `### 3. Implications\n`;
+  if (risks.length > strategic.length && risks.length > 0) {
+    answer += `The signal mix skews defensive right now. Expect budget scrutiny or internal change \u2014 this is a moment for reassurance and value demonstration, not upsell pressure.\n\n`;
+  } else if (strategic.length > 0 || engagement.length > 0) {
+    answer += `The signal mix skews toward growth and change \u2014 new initiatives typically mean new stakeholders and new budget conversations, which is a good entry point.\n\n`;
+  } else {
+    answer += `Signal volume is currently low, so treat this as a stable, low-news period rather than a change in trajectory.\n\n`;
+  }
+
+  answer += `### 4. Recommendation\n`;
+  if (risks.length > 0 && risks.length >= engagement.length) {
+    answer += `1. Lead with relationship maintenance and quick wins, not new asks\n2. Confirm your champion is still in place\n3. Revisit this account again in a week for signal changes`;
+  } else if (engagement.length > 0 || strategic.length > 0) {
+    answer += `1. Reach out referencing the specific initiative above\n2. Propose a short call tied to their stated direction\n3. Loop in a case study relevant to what they're doing`;
+  } else {
+    answer += `1. No urgent action needed \u2014 keep this account on a standard check-in cadence\n2. Use the quiet period to prep account plans for when news picks back up`;
+  }
+  return answer;
+}
+
 /**
  * Build a heuristic AI chat answer for the given query and news context.
+ * Supports multi-turn conversations: pass the prior turns as `history` so
+ * follow-up questions ("what about them?") resolve to the right company,
+ * and complex questions automatically get a deeper, multi-step answer.
  * @param {string} query - Raw user query.
  * @param {Array} context - News articles the user currently has in view.
+ * @param {Array} history - Prior turns as [{role: 'user'|'bot', content: string}, ...].
  * @returns {string} Markdown-formatted answer.
  */
-function generateChatAnswer(query, context) {
+function generateChatAnswer(query, context, history) {
   if (!query) {
     return 'Hi! I\'m your AlphaFeed assistant. Ask me about any of the 40+ companies I track, market trends, or engagement opportunities.';
   }
 
   const q = query.toLowerCase();
   const news = context || [];
-  const mentionedCompany = findMentionedCompany(q);
-  const { isAboutTrends, isAboutOpportunity, isAboutRisk, isAboutStrategy, isGreeting } = detectIntent(query);
+  let mentionedCompanies = findMentionedCompanies(q);
+
+  // Resolve follow-up questions ("what about them?") using conversation history.
+  if (mentionedCompanies.length === 0 && isFollowUpQuery(q)) {
+    const prior = lastMentionedCompanyFromHistory(history);
+    if (prior) mentionedCompanies = [prior];
+  }
+
+  const mentionedCompany = mentionedCompanies[0] || null;
+  const { isAboutTrends, isAboutOpportunity, isAboutRisk, isAboutStrategy, isGreeting, isDeepThink } = detectIntent(query);
 
   if (isGreeting) return buildGreetingAnswer(news);
+  if (mentionedCompanies.length >= 2) return buildComparisonAnswer(mentionedCompanies, news);
+  if (isDeepThink) return buildDeepThinkAnswer(query, news, mentionedCompany);
   if (mentionedCompany) return buildCompanyAnswer(mentionedCompany, news);
   if (isAboutOpportunity) return buildOpportunityAnswer(news);
   if (isAboutTrends) return buildTrendsAnswer(news);

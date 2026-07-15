@@ -30,6 +30,25 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/* Visually hidden but still readable by screen readers and search engines */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Keep a clear, consistent focus indicator for keyboard navigation
+   (Nielsen: visibility of system status / accessible feedback). */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Lightweight toast notifications for instant, unobtrusive action feedback */
+.toast-container { position: fixed; top: calc(var(--nav-height) + 1rem); right: 1.5rem; z-index: 3000; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
+.toast { pointer-events: auto; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 10px; padding: 0.75rem 1rem; box-shadow: var(--shadow-lg); font-size: 13px; font-weight: 600; max-width: 320px; animation: toastIn 0.2s ease-out; }
+.toast.toast-success { border-left-color: var(--success); }
+.toast.toast-error { border-left-color: #ef4444; }
+.toast.toast-hide { animation: toastOut 0.2s ease-in forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-8px); } }
 body { font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(--text-main); line-height: 1.5; transition: background-color 0.3s; overflow-x: hidden; }
 
 /* Layout */

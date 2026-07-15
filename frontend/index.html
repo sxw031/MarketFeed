@@ -4,16 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>AlphaFeed | Enterprise Strategic Intelligence Platform</title>
-    <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 18 enterprise accounts, generate AI-powered Market Intelligence reports, and discover engagement opportunities.">
-    <meta name="keywords" content="AlphaFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management">
+    <meta name="description" content="Real-time strategic news intelligence for enterprise account management. Track 40+ enterprise accounts, generate AI-powered Market Intelligence reports, and discover engagement opportunities.">
+    <meta name="keywords" content="AlphaFeed, MarketFeed, enterprise intelligence, strategic insights, news aggregator, CPaaS, customer success, account management, market news">
     <meta name="author" content="AlphaFeed Team">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://alphafeed.onrender.com">
+    <link rel="canonical" href="https://marketfeed.onrender.com/">
     <!-- Open Graph -->
     <meta property="og:title" content="AlphaFeed | Enterprise Strategic Intelligence">
-    <meta property="og:description" content="AI-powered strategic news intelligence for enterprise customer success teams.">
+    <meta property="og:description" content="AI-powered strategic news intelligence for enterprise customer success teams. Track 40+ companies, get instant market intelligence reports, and spot engagement opportunities in real time.">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://marketfeed.onrender.com/">
+    <meta property="og:site_name" content="AlphaFeed">
     <meta property="og:locale" content="en_US">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="AlphaFeed | Enterprise Strategic Intelligence">
+    <meta name="twitter:description" content="Real-time strategic news intelligence for enterprise account management teams.">
     <!-- PWA / Mobile -->
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,15 +40,27 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "AlphaFeed",
+      "url": "https://marketfeed.onrender.com/",
       "description": "Enterprise strategic intelligence platform for customer success teams",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
     }
     </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "AlphaFeed",
+      "url": "https://marketfeed.onrender.com/"
+    }
+    </script>
 </head>
 <body>
     <div id="app">
+        <!-- Instant, unobtrusive feedback for user actions (toasts) -->
+        <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
         <!-- Top Navigation Bar -->
         <nav class="navbar">
             <div class="nav-container">
@@ -62,7 +80,7 @@
                     </button>
                 </div>
 
-                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
                     <i class="fas fa-bars"></i>
                 </button>
 
@@ -100,7 +118,7 @@
         </nav>
 
         <!-- Sync Status Bar (Non-blocking) -->
-        <div id="syncStatusBar" class="sync-status-bar" style="display: none;">
+        <div id="syncStatusBar" class="sync-status-bar" style="display: none;" role="status" aria-live="polite">
             <div class="nav-container">
                 <div class="sync-content">
                     <i class="fas fa-sync fa-spin"></i>
@@ -197,6 +215,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="nav-container">
+                <h1 class="sr-only">AlphaFeed &mdash; Real-Time Strategic Market Intelligence &amp; Company News Feed</h1>
                 <div id="newsList" class="news-list"></div>
 
                 <!-- Pagination Controls -->

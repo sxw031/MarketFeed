@@ -10,6 +10,7 @@ let currentSort = 'latest'; // 'latest' or 'relevance'
 let pollingTimer = null;
 let currentPage = 1;
 let pageSize = parseInt(localStorage.getItem('mf_pageSize') || '20');
+let aiChatHistory = []; // multi-turn AI chat memory: [{role, content}, ...]
 const TIME_RANGE_WINDOWS = {
   '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
@@ -265,6 +266,7 @@ async function triggerAggregation() {
   } catch (e) {
     console.error('triggerAggregation:', e);
     showSyncBar(true, 'Sync failed - please try again', 0);
+    showToast('Sync failed. Please check your connection and try again.', 'error');
     isSyncing = false;
     setSyncButtonState(false);
     setTimeout(() => showSyncBar(false), 3000);
@@ -287,6 +289,7 @@ function startPolling() {
         if (done % 2 === 0) await loadNews(true);
       } else {
         showSyncBar(true, 'Sync complete!', 100);
+        showToast('News feed synced with the latest articles.', 'success');
         setTimeout(() => showSyncBar(false), 2500);
         clearInterval(pollingTimer);
         pollingTimer = null;
@@ -312,6 +315,22 @@ function showSyncBar(show, text, pct) {
   if (bar) bar.style.display = show ? 'block' : 'none';
   if (textEl && text) textEl.textContent = `${text} ${pct !== undefined ? '(' + pct + '%)' : ''}`;
   if (progressEl && pct !== undefined) progressEl.style.width = `${pct}%`;
+}
+
+// Lightweight, non-blocking toast so every user action gets clear,
+// immediate feedback without an intrusive modal (Nielsen: visibility of
+// system status).
+function showToast(message, type = 'info', duration = 3500) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-hide');
+    setTimeout(() => toast.remove(), 200);
+  }, duration);
 }
 
 // ==================== RENDERING ====================
@@ -637,6 +656,7 @@ function setupEventListeners() {
     localStorage.removeItem(SELECTED_COMPANIES_KEY);
     renderCompanyGrid();
     loadNews();
+    showToast('Filters cleared.', 'info', 2000);
   });
 
   // Logo click -> home
@@ -923,17 +943,22 @@ function setupEventListeners() {
     if (!q) return;
     appendChat('user', esc(q));
     input.value = '';
+    aiChatHistory.push({ role: 'user', content: q });
     const botMsg = appendChat('bot', '<div class="typing-indicator"><span></span><span></span><span></span></div>');
     try {
       const res = await fetch('/api/news/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, context: allNews.slice(0, 50) })
+        body: JSON.stringify({ query: q, context: allNews.slice(0, 50), history: aiChatHistory.slice(0, -1) })
       });
       const data = await res.json();
       const answer = data.success === false ? (data.error || 'AI service is unavailable right now.') : (data.answer || 'No answer available.');
       botMsg.innerHTML = renderMarkdown(answer).replace('<div class="report-body">', '<div>');
-    } catch (e) { botMsg.textContent = 'Connection error. Please try again.'; }
+      aiChatHistory.push({ role: 'bot', content: answer });
+      if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+    } catch (e) {
+      botMsg.textContent = 'Connection error. Please try again.';
+    }
   }
   bindEventById('sendAiMessage', 'click', handleChat);
   bindEventById('aiChatInput', 'keypress', (e) => { if (e.key === 'Enter') handleChat(); });
