@@ -130,16 +130,16 @@ async function getNews(filters = {}) {
     params.push(filters.company);
   }
 
-  // Time filter: compare ISO strings directly (both stored and input are ISO 8601)
+  // Time filter: use SQLite datetime parsing to avoid lexicographic string mismatches
   if (filters.startDate) {
     const startISO = normalizeToISO(filters.startDate);
-    sql += ' AND publishedAt >= ?';
+    sql += ' AND datetime(publishedAt) >= datetime(?)';
     params.push(startISO);
   }
 
   if (filters.endDate) {
     const endISO = normalizeToISO(filters.endDate);
-    sql += ' AND publishedAt <= ?';
+    sql += ' AND datetime(publishedAt) <= datetime(?)';
     params.push(endISO);
   }
 

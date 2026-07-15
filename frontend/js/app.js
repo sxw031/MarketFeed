@@ -18,6 +18,14 @@ const TIME_RANGE_WINDOWS = {
   '1w': 7 * 24 * 60 * 60 * 1000,
   '1m': 30 * 24 * 60 * 60 * 1000
 };
+const TIME_RANGE_ALIASES = {
+  '1week': '1w',
+  'week': '1w',
+  '7d': '1w',
+  '1month': '1m',
+  'month': '1m',
+  '30d': '1m'
+};
 
 // A "range key" is either a rolling window (6h/24h/...) or a 4-digit year.
 function isYearRangeKey(rangeKey) {
@@ -169,8 +177,9 @@ function getTimeRangeStart(rangeKey) {
 }
 
 function getTimeRangeBounds(rangeKey) {
+  const normalizedRangeKey = TIME_RANGE_ALIASES[rangeKey] || rangeKey;
   const now = new Date();
-  const windowMs = TIME_RANGE_WINDOWS[rangeKey];
+  const windowMs = TIME_RANGE_WINDOWS[normalizedRangeKey];
   if (windowMs) {
     return {
       startDate: new Date(Date.now() - windowMs).toISOString(),
@@ -178,8 +187,8 @@ function getTimeRangeBounds(rangeKey) {
     };
   }
 
-  const year = Number(rangeKey);
-  if (isYearRangeKey(rangeKey)) {
+  const year = Number(normalizedRangeKey);
+  if (isYearRangeKey(normalizedRangeKey)) {
     const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
     const end = year === now.getUTCFullYear()
       ? now
@@ -195,9 +204,11 @@ function getTimeRangeBounds(rangeKey) {
 
 function parseArticleDate(input) {
   if (!input) return null;
-  let dateStr = String(input);
-  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-    dateStr = dateStr.replace(' ', 'T') + 'Z';
+  let dateStr = String(input).trim();
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(dateStr);
+  if (!hasExplicitTimezone) {
+    dateStr = dateStr.replace(' ', 'T');
+    if (!dateStr.endsWith('Z')) dateStr += 'Z';
   }
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? null : d;
@@ -629,8 +640,9 @@ function setupEventListeners() {
     btn.addEventListener('click', () => {
       const range = btn.dataset.range;
       const isYear = isYearRangeKey(range);
-      const isKnownRange = Boolean(TIME_RANGE_WINDOWS[range]) || isYear;
-      activeTimeRangeKey = isKnownRange ? range : '24h';
+      const normalizedRange = TIME_RANGE_ALIASES[range] || range;
+      const isKnownRange = Boolean(TIME_RANGE_WINDOWS[normalizedRange]) || isYear;
+      activeTimeRangeKey = isKnownRange ? normalizedRange : '24h';
       document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeTimeRange = getTimeRangeStart(activeTimeRangeKey);
