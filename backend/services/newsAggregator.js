@@ -201,6 +201,10 @@ async function getNewsCount() {
   return row ? row.count : 0;
 }
 
+async function getNewsById(id) {
+  return query.get('SELECT * FROM news WHERE id = ?', [id]);
+}
+
 function getAvailableCompanies() {
   return COMPANIES.map(c => ({ id: c.id, name: c.name, category: c.category }));
 }
@@ -214,6 +218,7 @@ module.exports = {
   aggregateAllNews,
   getNews,
   getNewsCount,
+  getNewsById,
   getAvailableCompanies,
   getSources,
   storeArticles,

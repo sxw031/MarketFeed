@@ -1,4 +1,4 @@
-const { aggregateAllNews, getNews, getNewsCount, getAvailableCompanies, getSources } = require('../services/newsAggregator');
+const { aggregateAllNews, getNews, getNewsCount, getNewsById, getAvailableCompanies, getSources } = require('../services/newsAggregator');
 const { generateYearlySummary } = require('../services/strategyEngine');
 const { generateSpeech, generatePodcastScript, generateReportScript } = require('../services/ttsService');
 const { fetchArticlePreview } = require('../services/articlePreview');
@@ -52,8 +52,17 @@ async function getSourcesList(req, res) {
 
 async function getArticlePreview(req, res) {
   try {
-    const { url, summary } = req.query;
-    const preview = await fetchArticlePreview(url, summary || '');
+    const articleId = parseInt(req.query.articleId, 10);
+    if (!articleId || articleId < 1) {
+      return res.status(400).json({ success: false, error: 'Valid articleId is required' });
+    }
+
+    const article = await getNewsById(articleId);
+    if (!article) {
+      return res.status(404).json({ success: false, error: 'Article not found' });
+    }
+
+    const preview = await fetchArticlePreview(article.url, article.description || '');
     res.json({ success: true, data: preview });
   } catch (error) {
     console.error('[API] getArticlePreview error:', error.message);

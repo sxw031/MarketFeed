@@ -3,22 +3,24 @@ const axios = require('axios');
 const MAX_TEXT_LENGTH = 4000;
 
 function decodeHtmlEntities(text = '') {
-  return text
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&#x27;/gi, "'")
-    .replace(/&#x2F;/gi, '/');
+  const entities = {
+    nbsp: ' ',
+    amp: '&',
+    quot: '"',
+    '#39': "'",
+    lt: '<',
+    gt: '>',
+    '#x27': "'",
+    '#x2F': '/'
+  };
+  return text.replace(/&([a-z0-9#]+);/gi, (match, entity) => entities[entity] ?? match);
 }
 
 function cleanText(input = '') {
   return decodeHtmlEntities(
     input
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style\s*>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
@@ -41,7 +43,7 @@ function extractMetaDescription(html = '') {
 }
 
 function extractJsonLdText(html = '') {
-  const scripts = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi) || [];
+  const scripts = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script\s*>/gi) || [];
   const chunks = [];
 
   for (const script of scripts) {

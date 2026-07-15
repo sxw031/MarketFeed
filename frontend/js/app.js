@@ -363,7 +363,7 @@ function showArticleModal(article) {
   modal.style.display = 'block';
   document.body.style.overflow = 'hidden';
 
-  loadArticlePreview(article, fallbackSummary)
+  loadArticlePreview(article)
     .then(preview => {
       renderArticleModalContent({
         logo,
@@ -420,10 +420,9 @@ function renderArticleModalContent({ logo, article, quickSummary, articlePreview
     </div>`;
 }
 
-async function loadArticlePreview(article, fallbackSummary) {
+async function loadArticlePreview(article) {
   const params = new URLSearchParams({
-    url: article.url || '',
-    summary: fallbackSummary || ''
+    articleId: String(article.id || '')
   });
   const res = await fetch(`${API_BASE}/article-preview?${params.toString()}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
