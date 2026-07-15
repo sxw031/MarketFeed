@@ -10,8 +10,10 @@ const os = require('os');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 
+const EDGE_TTS_ENABLED = String(process.env.ENABLE_EDGE_TTS || '').toLowerCase() === 'true';
+
 /**
- * Generate speech - tries edge-tts first, falls back to Google TTS
+ * Generate speech - uses Google TTS by default, optional edge-tts only when enabled
  */
 async function generateSpeech(text, options = {}) {
   const maxLength = options.maxLength || 5000;
@@ -33,18 +35,18 @@ async function generateSpeech(text, options = {}) {
 
   console.log(`[TTS] Generating speech for ${cleanText.length} chars...`);
 
-  // Try edge-tts first (better quality)
-  try {
-    const buffer = await edgeTTS(cleanText);
-    if (buffer && buffer.length > 1000) {
-      console.log(`[TTS] edge-tts success: ${buffer.length} bytes`);
-      return buffer;
+  if (EDGE_TTS_ENABLED) {
+    try {
+      const buffer = await edgeTTS(cleanText);
+      if (buffer && buffer.length > 1000) {
+        console.log(`[TTS] edge-tts success: ${buffer.length} bytes`);
+        return buffer;
+      }
+    } catch (err) {
+      console.warn(`[TTS] edge-tts failed: ${err.message}, using Google TTS`);
     }
-  } catch (err) {
-    console.warn(`[TTS] edge-tts failed: ${err.message}, using Google TTS`);
   }
 
-  // Fallback: Google TTS (always works)
   const buffer = await googleTTS(cleanText);
   console.log(`[TTS] Google TTS success: ${buffer.length} bytes`);
   return buffer;

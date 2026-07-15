@@ -1,8 +1,17 @@
-const { aggregateAllNews, getNews, getNewsCount, getNewsById, getAvailableCompanies, getSources } = require('../services/newsAggregator');
+const crypto = require('crypto');
+const { aggregateAllNews, getNews, getNewsPage, getNewsCount, getNewsById, getAvailableCompanies, getSources } = require('../services/newsAggregator');
 const { generateYearlySummary } = require('../services/strategyEngine');
 const { generateSpeech, generatePodcastScript, generateReportScript } = require('../services/ttsService');
 const { fetchArticlePreview } = require('../services/articlePreview');
 const { COMPANIES } = require('../config/sources');
+const { RuntimeCache } = require('../services/runtimeCache');
+
+const previewCache = new RuntimeCache({ maxEntries: 200, defaultTtlMs: 15 * 60 * 1000 });
+const audioCache = new RuntimeCache({ maxEntries: 20, defaultTtlMs: 10 * 60 * 1000 });
+
+function createHashKey(prefix, input) {
+  return `${prefix}:${crypto.createHash('sha1').update(input).digest('hex')}`;
+}
 
 // --- Aggregation State ---
 let aggregationState = {
@@ -26,10 +35,19 @@ async function getAllNews(req, res) {
       source: req.query.source,
       search: req.query.search,
       sort: req.query.sort || 'latest',
-      limit: req.query.limit ? parseInt(req.query.limit) : 200
+      page: req.query.page ? parseInt(req.query.page, 10) : 1,
+      pageSize: req.query.pageSize ? parseInt(req.query.pageSize, 10) : 20
     };
-    const news = await getNews(filters);
-    res.json({ success: true, count: news.length, data: news });
+    const page = await getNewsPage(filters);
+    res.json({
+      success: true,
+      count: page.items.length,
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
+      totalPages: Math.max(1, Math.ceil(page.total / page.pageSize)),
+      data: page.items
+    });
   } catch (error) {
     console.error('[API] getAllNews error:', error.message);
     res.status(500).json({ success: false, error: error.message });
@@ -62,7 +80,14 @@ async function getArticlePreview(req, res) {
       return res.status(404).json({ success: false, error: 'Article not found' });
     }
 
+    const cacheKey = createHashKey('preview', `${article.id}:${article.url}:${article.description || ''}`);
+    const cachedPreview = previewCache.get(cacheKey);
+    if (cachedPreview) {
+      return res.json({ success: true, data: cachedPreview, cached: true });
+    }
+
     const preview = await fetchArticlePreview(article.url, article.description || '');
+    previewCache.set(cacheKey, preview);
     res.json({ success: true, data: preview });
   } catch (error) {
     console.error('[API] getArticlePreview error:', error.message);
@@ -123,8 +148,20 @@ async function getPodcast(req, res) {
       return res.status(500).json({ success: false, error: 'Failed to generate podcast script' });
     }
 
+    const cacheKey = createHashKey('podcast', news.map(article => `${article.id}:${article.publishedAt}`).join('|'));
+    const cachedAudio = audioCache.get(cacheKey);
+    if (cachedAudio) {
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': cachedAudio.length,
+        'Cache-Control': 'public, max-age=300'
+      });
+      return res.send(cachedAudio);
+    }
+
     console.log(`[Podcast] Generating audio for ${script.length} chars...`);
     const audioBuffer = await generateSpeech(script);
+    audioCache.set(cacheKey, audioBuffer);
 
     res.set({
       'Content-Type': 'audio/mpeg',
@@ -152,8 +189,16 @@ async function getReportSpeech(req, res) {
       return res.status(500).json({ success: false, error: 'Failed to generate report script' });
     }
 
+    const cacheKey = createHashKey('report-speech', script);
+    const cachedAudio = audioCache.get(cacheKey);
+    if (cachedAudio) {
+      res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': cachedAudio.length });
+      return res.send(cachedAudio);
+    }
+
     console.log(`[ReportSpeech] Generating audio for ${script.length} chars...`);
     const audioBuffer = await generateSpeech(script);
+    audioCache.set(cacheKey, audioBuffer);
 
     res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': audioBuffer.length });
     res.send(audioBuffer);

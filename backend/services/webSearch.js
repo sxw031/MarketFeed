@@ -6,6 +6,16 @@ const parser = new Parser({
   headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
 });
 
+const SOURCE_STATE = new Map();
+const SOURCE_COOLDOWN_MS = 30 * 60 * 1000;
+const TARGET_ARTICLE_COUNT = Number.parseInt(process.env.TARGET_ARTICLE_COUNT || '8', 10);
+const SOURCE_ORDER = [
+  { key: 'google', run: (company) => fetchGoogleNewsRSS(company, { limit: 8 }) },
+  { key: 'official', run: (company) => fetchOfficialWebsiteNews(company, { limit: 5 }) },
+  { key: 'bing', run: (company) => fetchBingNewsRSS(company, { limit: 4 }) },
+  { key: 'linkedin', run: (company) => fetchLinkedInNews(company, { limit: 3 }) }
+];
+
 // --- Login-wall / paywall domains to filter out ---
 const LOGIN_WALL_DOMAINS = [
   'linkedin.com/pulse', 'linkedin.com/posts',
@@ -73,6 +83,53 @@ function categorizeSource(source) {
     if (source.toLowerCase().includes(name.toLowerCase())) return category;
   }
   return 'News';
+}
+
+function getSourceState(company, sourceKey) {
+  return SOURCE_STATE.get(`${company}:${sourceKey}`) || { failCount: 0, cooldownUntil: 0, lastSuccessAt: 0 };
+}
+
+function setSourceState(company, sourceKey, nextState) {
+  SOURCE_STATE.set(`${company}:${sourceKey}`, nextState);
+}
+
+function shouldSkipSource(company, sourceKey) {
+  const state = getSourceState(company, sourceKey);
+  return state.cooldownUntil > Date.now();
+}
+
+function recordSourceResult(company, sourceKey, articleCount, error) {
+  const state = getSourceState(company, sourceKey);
+  if (error || articleCount === 0) {
+    const failCount = state.failCount + 1;
+    const cooldownMs = Math.min(SOURCE_COOLDOWN_MS * failCount, 4 * 60 * 60 * 1000);
+    setSourceState(company, sourceKey, {
+      failCount,
+      cooldownUntil: Date.now() + cooldownMs,
+      lastSuccessAt: state.lastSuccessAt
+    });
+    return;
+  }
+
+  const lowValueCooldownMs = articleCount <= 1 && ['bing', 'linkedin'].includes(sourceKey)
+    ? 15 * 60 * 1000
+    : 0;
+  setSourceState(company, sourceKey, {
+    failCount: 0,
+    cooldownUntil: Date.now() + lowValueCooldownMs,
+    lastSuccessAt: Date.now()
+  });
+}
+
+function mergeUniqueArticles(existing, incoming) {
+  const seen = new Set(existing.map(article => article.title.toLowerCase().substring(0, 60)));
+  for (const article of incoming) {
+    const key = article.title.toLowerCase().substring(0, 60);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    existing.push(article);
+  }
+  return existing;
 }
 
 // --- Source 1: Google News RSS (Primary, most reliable) ---
@@ -610,27 +667,26 @@ function detectCategory(title, description) {
 
 // --- Main Fetch Function ---
 async function fetchNewsForCompany(company) {
-  // Run all 4 sources in parallel with a 20s global timeout
-  const timeout = new Promise(resolve => setTimeout(() => resolve([]), 20000));
+  const articles = [];
+  const timeoutMs = Number.parseInt(process.env.SOURCE_TIMEOUT_MS || '12000', 10);
 
-  const [google, bing, linkedin, official] = await Promise.all([
-    Promise.race([fetchGoogleNewsRSS(company, { limit: 10 }), timeout]),
-    Promise.race([fetchBingNewsRSS(company, { limit: 5 }), timeout]),
-    Promise.race([fetchLinkedInNews(company, { limit: 6 }), timeout]),
-    Promise.race([fetchOfficialWebsiteNews(company, { limit: 8 }), timeout])
-  ]);
+  for (const source of SOURCE_ORDER) {
+    if (articles.length >= TARGET_ARTICLE_COUNT) break;
+    if (shouldSkipSource(company, source.key)) continue;
 
-  // Merge and deduplicate by title similarity
-  const all = [...(google || []), ...(bing || []), ...(linkedin || []), ...(official || [])];
-  const seen = new Set();
-  const unique = all.filter(a => {
-    const key = a.title.toLowerCase().substring(0, 60);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+    try {
+      const batch = await Promise.race([
+        source.run(company),
+        new Promise((resolve) => setTimeout(() => resolve([]), timeoutMs))
+      ]);
+      recordSourceResult(company, source.key, batch.length, null);
+      mergeUniqueArticles(articles, batch || []);
+    } catch (error) {
+      recordSourceResult(company, source.key, 0, error);
+    }
+  }
 
-  return unique;
+  return articles;
 }
 
 module.exports = { fetchNewsForCompany, fetchGoogleNewsRSS, fetchBingNewsRSS, fetchLinkedInNews, fetchOfficialWebsiteNews, categorizeSource };

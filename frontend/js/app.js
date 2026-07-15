@@ -1,7 +1,9 @@
-const API_BASE = '/api/news';
+const API_BASE = window.MarketFeedApi.API_BASE;
 const SELECTED_COMPANIES_KEY = 'mf_companies';
 
 let allNews = [];
+let totalNewsCount = 0;
+let totalNewsPages = 1;
 let availableCompanies = [];
 let selectedCompanies = JSON.parse(localStorage.getItem(SELECTED_COMPANIES_KEY) || '[]');
 let activeTimeRange = null;
@@ -116,14 +118,11 @@ let activeCategoryFilter = 'all';
 
 async function loadCompanies() {
   try {
-    const res = await fetch(`${API_BASE}/companies`);
-    const data = await res.json();
-    if (data.success) {
-      availableCompanies = data.data;
-      availableCategories = data.categories || [];
-      renderCategoryTabs();
-      renderCompanyGrid();
-    }
+    const data = await window.MarketFeedApi.fetchCompanies();
+    availableCompanies = data.data;
+    availableCategories = data.categories || [];
+    renderCategoryTabs();
+    renderCompanyGrid();
   } catch (e) { console.error('loadCompanies:', e); }
 }
 
@@ -143,45 +142,51 @@ function renderCategoryTabs() {
   });
 }
 
-async function loadNews(silent = false) {
-  if (!silent) { showLoading(true); currentPage = 1; }
+function getActiveNewsFilters(overrides = {}) {
+  activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
+  const { startDate, endDate } = activeTimeRangeBounds;
+  activeTimeRange = startDate;
+  const category = document.getElementById('categoryFilter')?.value || '';
+  const source = document.getElementById('sourceFilter')?.value || '';
+  const search = document.getElementById('searchInput')?.value.trim() || '';
+  return {
+    startDate,
+    endDate,
+    category,
+    source,
+    search,
+    companies: selectedCompanies,
+    sort: currentSort,
+    page: currentPage,
+    pageSize,
+    ...overrides
+  };
+}
+
+async function loadNews(silent = false, options = {}) {
+  if (options.resetPage) currentPage = 1;
+  if (!silent) showLoading(true);
   const requestId = ++activeNewsRequestId;
   if (activeNewsAbortController) activeNewsAbortController.abort();
   activeNewsAbortController = new AbortController();
   try {
-    let url = `${API_BASE}?limit=300`;
-    activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
-    const { startDate, endDate } = activeTimeRangeBounds;
-    activeTimeRange = startDate;
-    url += `&startDate=${encodeURIComponent(startDate)}`;
-    url += `&endDate=${encodeURIComponent(endDate)}`;
-    url += `&_ts=${Date.now()}`;
-
-    const category = document.getElementById('categoryFilter').value;
-    const source = document.getElementById('sourceFilter').value;
-    const search = document.getElementById('searchInput').value.trim();
-
-    if (category) url += `&category=${encodeURIComponent(category)}`;
-    if (source) url += `&source=${encodeURIComponent(source)}`;
-    if (selectedCompanies.length > 0) url += `&companies=${selectedCompanies.join(',')}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-
-    const res = await fetch(url, { signal: activeNewsAbortController.signal, cache: 'no-store' });
-    const data = await res.json();
+    const data = await window.MarketFeedApi.fetchNewsPage(
+      getActiveNewsFilters(),
+      { signal: activeNewsAbortController.signal }
+    );
     if (requestId !== activeNewsRequestId) return;
-    if (data.success) {
-      allNews = applyActiveTimeFilter(data.data || [], activeTimeRangeBounds);
-      updateResultsSummary(allNews.length);
-      sortAndRender();
-    } else {
-      allNews = [];
-      updateResultsSummary(0);
-      renderNews();
-    }
+    allNews = data.data || [];
+    totalNewsCount = data.total || allNews.length;
+    totalNewsPages = data.totalPages || 1;
+    currentPage = data.page || currentPage;
+    updateResultsSummary(totalNewsCount);
+    renderNews();
   } catch (e) {
     if (e.name === 'AbortError') return;
     console.error('loadNews:', e);
     allNews = [];
+    totalNewsCount = 0;
+    totalNewsPages = 1;
     updateResultsSummary(0);
     if (!silent) showEmptyState(true);
   } finally {
@@ -282,14 +287,8 @@ function calculateRelevance(article) {
 }
 
 function sortAndRender() {
-  if (currentSort === 'relevance') {
-    allNews.sort((a, b) => calculateRelevance(b) - calculateRelevance(a));
-  } else if (currentSort === 'oldest') {
-    allNews.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
-  } else {
-    allNews.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  }
-  renderNews();
+  currentPage = 1;
+  loadNews(false);
 }
 
 // ==================== AGGREGATION & PROGRESS ====================
@@ -340,8 +339,6 @@ function startPolling() {
         const total = s.totalCompanies || done || 1;
         const pct = Math.round((done / total) * 100);
         showSyncBar(true, `Syncing: ${done}/${total} [${s.currentCompany || '...'}]`, pct);
-        // Refresh news every other poll
-        if (done % 2 === 0) await loadNews(true);
       } else {
         showSyncBar(true, 'Sync complete!', 100);
         showToast('News feed synced with the latest articles.', 'success');
@@ -393,18 +390,12 @@ function renderNews() {
   const list = document.getElementById('newsList');
   if (allNews.length === 0) { showEmptyState(true); hidePagination(); return; }
   showEmptyState(false);
+  const totalItems = totalNewsCount || allNews.length;
+  const totalPages = totalNewsPages || 1;
+  const startIdx = totalItems === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+  const endIdx = totalItems === 0 ? 0 : Math.min(((currentPage - 1) * pageSize) + allNews.length, totalItems);
 
-  // Pagination
-  const totalItems = allNews.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
-  if (currentPage > totalPages) currentPage = totalPages;
-  if (currentPage < 1) currentPage = 1;
-
-  const startIdx = (currentPage - 1) * pageSize;
-  const endIdx = Math.min(startIdx + pageSize, totalItems);
-  const pageItems = allNews.slice(startIdx, endIdx);
-
-  list.innerHTML = pageItems.map(a => createCard(a)).join('');
+  list.innerHTML = allNews.map(a => createCard(a)).join('');
   list.querySelectorAll('.news-card').forEach(card => {
     card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
   });
@@ -421,10 +412,10 @@ function renderPagination(totalItems, totalPages, startIdx, endIdx) {
   const prevBtn = document.getElementById('prevPage');
   const nextBtn = document.getElementById('nextPage');
 
-  if (totalItems <= 20) { container.style.display = 'none'; return; }
+  if (totalItems <= pageSize) { container.style.display = 'none'; return; }
   container.style.display = 'flex';
 
-  summary.textContent = `Showing ${startIdx + 1}-${endIdx} of ${totalItems}`;
+  summary.textContent = `Showing ${startIdx}-${endIdx} of ${totalItems}`;
   prevBtn.disabled = currentPage <= 1;
   nextBtn.disabled = currentPage >= totalPages;
 
@@ -561,16 +552,10 @@ function renderArticleModalContent({ logo, article, quickSummary, articlePreview
 }
 
 async function loadArticlePreview(article) {
-  const params = new URLSearchParams({
-    articleId: String(article.id || '')
-  });
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`${API_BASE}/article-preview?${params.toString()}`, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed preview');
+    const data = await window.MarketFeedApi.fetchArticlePreview(article.id || '', { signal: controller.signal });
     return data.data || {};
   } finally {
     clearTimeout(timeoutId);
@@ -589,13 +574,8 @@ async function showYearlySummary(year) {
   document.body.style.overflow = 'hidden';
 
   try {
-    const res = await fetch(`${API_BASE}/yearly-summary/${year}`);
-    const data = await res.json();
-    if (data.success) {
-      content.innerHTML = renderYearlySummary(data.data, year);
-    } else {
-      content.innerHTML = '<p style="text-align:center;padding:2rem;">Failed to load summary.</p>';
-    }
+    const data = await window.MarketFeedApi.fetchYearlySummary(year);
+    content.innerHTML = renderYearlySummary(data.data, year);
   } catch (e) {
     content.innerHTML = '<p style="text-align:center;padding:2rem;">Error loading summary.</p>';
   }
@@ -644,6 +624,8 @@ function setModalOpen(modalEl, isOpen) {
 
 // ==================== EVENT LISTENERS ====================
 function setupEventListeners() {
+  const debouncedSearch = window.MarketFeedApi.debounce(() => loadNews(false, { resetPage: true }), 350);
+
   // Mobile menu toggle
   const mobileToggle = document.getElementById('mobileMenuToggle');
   const navRight = document.getElementById('navRight');
@@ -660,9 +642,10 @@ function setupEventListeners() {
   bindEventById('refreshBtn', 'click', () => triggerAggregation());
 
   // Filters - auto apply on change
-  bindEventById('categoryFilter', 'change', () => loadNews());
-  bindEventById('sourceFilter', 'change', () => loadNews());
-  bindEventById('searchInput', 'keypress', (e) => { if (e.key === 'Enter') loadNews(); });
+  bindEventById('categoryFilter', 'change', () => loadNews(false, { resetPage: true }));
+  bindEventById('sourceFilter', 'change', () => loadNews(false, { resetPage: true }));
+  bindEventById('searchInput', 'input', () => debouncedSearch());
+  bindEventById('searchInput', 'keypress', (e) => { if (e.key === 'Enter') loadNews(false, { resetPage: true }); });
 
   // Sort buttons
   document.querySelectorAll('.btn-sort').forEach(btn => {
@@ -686,7 +669,7 @@ function setupEventListeners() {
       btn.classList.add('active');
       activeTimeRangeBounds = getTimeRangeBounds(activeTimeRangeKey);
       activeTimeRange = activeTimeRangeBounds.startDate;
-      loadNews();
+      loadNews(false, { resetPage: true });
       // Yearly buttons also restore the Major Events report for that year
       if (isYear) showYearlySummary(Number(range));
     });
@@ -713,7 +696,7 @@ function setupEventListeners() {
     if (latestBtn) latestBtn.classList.add('active');
     localStorage.removeItem(SELECTED_COMPANIES_KEY);
     renderCompanyGrid();
-    loadNews();
+    loadNews(false, { resetPage: true });
     showToast('Filters cleared.', 'info', 2000);
   });
 
@@ -736,7 +719,7 @@ function setupEventListeners() {
     localStorage.setItem(SELECTED_COMPANIES_KEY, JSON.stringify(selectedCompanies));
     setModalOpen(selectorModal, false);
     updateSelectionLabel();
-    loadNews();
+    loadNews(false, { resetPage: true });
   });
   bindEventById('selectAllBtn', 'click', () => {
     document.querySelectorAll('.company-item').forEach(el => el.classList.add('selected'));
@@ -893,6 +876,15 @@ function setupEventListeners() {
     });
   });
 
+  async function fetchFilteredNewsContext(limit = 50) {
+    const data = await window.MarketFeedApi.fetchNewsPage({
+      ...getActiveNewsFilters({ page: 1, pageSize: limit }),
+      page: 1,
+      pageSize: limit
+    });
+    return data.data || [];
+  }
+
   async function generateMarketIntelligenceReport(period = 'daily') {
     const periodLabels = { daily: 'Daily Briefing', weekly: 'Weekly Review', monthly: 'Monthly Assessment', quarterly: 'Quarterly Intelligence' };
     setModalOpen(reportModal, true);
@@ -902,8 +894,9 @@ function setupEventListeners() {
       // For daily, send current news; for longer periods, backend fetches from DB
       const payload = { period };
       if (period === 'daily') {
-        const newsForReport = allNews.filter(n => n.category === 'Strategic Insights').slice(0, 20);
-        payload.news = newsForReport.length > 0 ? newsForReport : allNews.slice(0, 15);
+        const reportContext = await fetchFilteredNewsContext(50);
+        const newsForReport = reportContext.filter(n => n.category === 'Strategic Insights').slice(0, 20);
+        payload.news = newsForReport.length > 0 ? newsForReport : reportContext.slice(0, 15);
       }
       const res = await fetch('/api/news/ai/strategy', {
         method: 'POST',
@@ -1007,7 +1000,7 @@ function setupEventListeners() {
       const res = await fetch('/api/news/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, context: allNews.slice(0, 50), history: aiChatHistory.slice(0, -1) })
+        body: JSON.stringify({ query: q, context: await fetchFilteredNewsContext(50), history: aiChatHistory.slice(0, -1) })
       });
       const data = await res.json();
       const answer = data.success === false ? (data.error || 'AI service is unavailable right now.') : (data.answer || 'No answer available.');
@@ -1032,22 +1025,21 @@ function setupEventListeners() {
 
   // ==================== PAGINATION ====================
   bindEventById('prevPage', 'click', () => {
-    if (currentPage > 1) { currentPage--; renderNews(); }
+    if (currentPage > 1) { currentPage--; loadNews(false); }
   });
   bindEventById('nextPage', 'click', () => {
-    const totalPages = Math.ceil(allNews.length / pageSize);
-    if (currentPage < totalPages) { currentPage++; renderNews(); }
+    if (currentPage < totalNewsPages) { currentPage++; loadNews(false); }
   });
   bindEventById('pageNumbers', 'click', (e) => {
     const btn = e.target.closest('.btn-page-num');
-    if (btn) { currentPage = parseInt(btn.dataset.page); renderNews(); }
+    if (btn) { currentPage = parseInt(btn.dataset.page); loadNews(false); }
   });
   document.querySelectorAll('.btn-page-size').forEach(btn => {
     btn.addEventListener('click', () => {
       pageSize = parseInt(btn.dataset.size);
       localStorage.setItem('mf_pageSize', pageSize);
       currentPage = 1;
-      renderNews();
+      loadNews(false);
     });
   });
 

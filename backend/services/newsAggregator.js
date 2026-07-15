@@ -2,6 +2,15 @@ const { db, query } = require('../models/db');
 const { fetchNewsForCompany } = require('./webSearch');
 const { COMPANIES } = require('../config/sources');
 
+const NEWS_SELECT_COLUMNS = 'id, company, title, description, url, source, category, publishedAt';
+const SOURCE_FILTER_SQL = {
+  'Major Media': `(source LIKE '%Reuters%' OR source LIKE '%AP%' OR source LIKE '%BBC%' OR source LIKE '%CNBC%' OR source LIKE '%CNN%' OR source LIKE '%Guardian%')`,
+  Financial: `(source LIKE '%Bloomberg%' OR source LIKE '%Financial Times%' OR source LIKE '%WSJ%' OR source LIKE '%Yahoo Finance%' OR source LIKE '%MarketWatch%' OR source LIKE '%Barron%')`,
+  'Tech & Industry': `(source LIKE '%TechCrunch%' OR source LIKE '%Verge%' OR source LIKE '%Wired%' OR source LIKE '%ZDNet%' OR source LIKE '%Ars Technica%' OR source LIKE '%TechRadar%')`,
+  LinkedIn: `source LIKE '%LinkedIn%'`,
+  'Official Website': `source LIKE '%Official%'`
+};
+
 // --- Category Classification ---
 const CATEGORY_RULES = [
   { category: 'Strategic Insights', keywords: ['partnership', 'collaboration', 'expand', 'growth', 'acquisition', 'merger', 'ceo', 'executive', 'revenue', 'profit', 'earnings', 'strategy', 'invest', 'funding', 'launch', 'hiring', 'layoff', 'rebrand', 'contract', 'deal', 'agreement', 'announce', 'milestone', 'record'] },
@@ -76,8 +85,7 @@ async function aggregateAllNews(options = {}) {
 
   console.log(`[Aggregator] Starting sync for ${COMPANIES.length} companies...`);
 
-  // Process 3 companies at a time
-  const BATCH_SIZE = 3;
+  const BATCH_SIZE = Math.max(1, Number.parseInt(process.env.AGGREGATION_BATCH_SIZE || '2', 10) || 2);
   for (let i = 0; i < COMPANIES.length; i += BATCH_SIZE) {
     const batch = COMPANIES.slice(i, i + BATCH_SIZE);
 
@@ -107,7 +115,7 @@ async function aggregateAllNews(options = {}) {
       .reduce((sum, r) => sum + r.value, 0);
 
     if (i + BATCH_SIZE < COMPANIES.length) {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 750));
     }
   }
 
@@ -117,10 +125,8 @@ async function aggregateAllNews(options = {}) {
 }
 
 // --- Query Layer ---
-async function getNews(filters = {}) {
-  let sql = 'SELECT * FROM news WHERE 1=1';
-  const params = [];
-
+function buildNewsWhere(filters = {}, params = []) {
+  let sql = ' WHERE 1=1';
   if (filters.companies && filters.companies.length > 0) {
     const placeholders = filters.companies.map(() => '?').join(',');
     sql += ` AND company IN (${placeholders})`;
@@ -130,16 +136,15 @@ async function getNews(filters = {}) {
     params.push(filters.company);
   }
 
-  // Time filter: use SQLite datetime parsing to avoid lexicographic string mismatches
   if (filters.startDate) {
     const startISO = normalizeToISO(filters.startDate);
-    sql += ' AND datetime(publishedAt) >= datetime(?)';
+    sql += ' AND publishedAt >= ?';
     params.push(startISO);
   }
 
   if (filters.endDate) {
     const endISO = normalizeToISO(filters.endDate);
-    sql += ' AND datetime(publishedAt) <= datetime(?)';
+    sql += ' AND publishedAt <= ?';
     params.push(endISO);
   }
 
@@ -149,17 +154,8 @@ async function getNews(filters = {}) {
   }
 
   if (filters.source) {
-    // Support source category filtering
-    if (filters.source === 'Major Media') {
-      sql += ` AND (source LIKE '%Reuters%' OR source LIKE '%AP%' OR source LIKE '%BBC%' OR source LIKE '%CNBC%' OR source LIKE '%CNN%' OR source LIKE '%Guardian%')`;
-    } else if (filters.source === 'Financial') {
-      sql += ` AND (source LIKE '%Bloomberg%' OR source LIKE '%Financial Times%' OR source LIKE '%WSJ%' OR source LIKE '%Yahoo Finance%' OR source LIKE '%MarketWatch%' OR source LIKE '%Barron%')`;
-    } else if (filters.source === 'Tech & Industry') {
-      sql += ` AND (source LIKE '%TechCrunch%' OR source LIKE '%Verge%' OR source LIKE '%Wired%' OR source LIKE '%ZDNet%' OR source LIKE '%Ars Technica%' OR source LIKE '%TechRadar%')`;
-    } else if (filters.source === 'LinkedIn') {
-      sql += ` AND source LIKE '%LinkedIn%'`;
-    } else if (filters.source === 'Official Website') {
-      sql += ` AND source LIKE '%Official%'`;
+    if (SOURCE_FILTER_SQL[filters.source]) {
+      sql += ` AND ${SOURCE_FILTER_SQL[filters.source]}`;
     } else {
       sql += ' AND source LIKE ?';
       params.push(`%${filters.source}%`);
@@ -167,7 +163,6 @@ async function getNews(filters = {}) {
   }
 
   if (filters.search) {
-    // Fuzzy search: tokenize by spaces, each token must match in title OR description
     const tokens = filters.search.trim().split(/\s+/).filter(t => t.length > 0);
     if (tokens.length > 0) {
       const tokenClauses = tokens.map(token => {
@@ -177,15 +172,30 @@ async function getNews(filters = {}) {
       sql += ` AND (${tokenClauses.join(' AND ')})`;
     }
   }
+  return sql;
+}
 
-  // Sort support
-  if (filters.sort === 'relevance') {
-    // Sort by relevance - articles with messaging/communication keywords first
-    sql += ` ORDER BY (
+function buildNewsOrder(sort = 'latest') {
+  if (sort === 'relevance') {
+    return ` ORDER BY (
       CASE WHEN (lower(title) LIKE '%messaging%' OR lower(title) LIKE '%communication%' OR lower(title) LIKE '%api%' OR lower(title) LIKE '%notification%' OR lower(title) LIKE '%sms%' OR lower(title) LIKE '%rcs%' OR lower(title) LIKE '%whatsapp%' OR lower(title) LIKE '%chatbot%' OR lower(title) LIKE '%omnichannel%' OR lower(title) LIKE '%cpaas%' OR lower(title) LIKE '%customer engagement%' OR lower(title) LIKE '%digital%' OR lower(title) LIKE '%platform%' OR lower(title) LIKE '%enterprise%') THEN 0 ELSE 1 END
     ), publishedAt DESC`;
+  }
+  if (sort === 'oldest') {
+    return ' ORDER BY publishedAt ASC';
+  }
+  return ' ORDER BY publishedAt DESC';
+}
+
+async function getNews(filters = {}) {
+  const params = [];
+  let sql = `SELECT ${NEWS_SELECT_COLUMNS} FROM news`;
+  sql += buildNewsWhere(filters, params);
+
+  if (filters.sort === 'relevance') {
+    sql += buildNewsOrder('relevance');
   } else {
-    sql += ' ORDER BY publishedAt DESC';
+    sql += buildNewsOrder(filters.sort);
   }
 
   if (filters.limit) {
@@ -194,6 +204,27 @@ async function getNews(filters = {}) {
   }
 
   return query.all(sql, params);
+}
+
+async function getNewsPage(filters = {}) {
+  const page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(10, Number.parseInt(filters.pageSize, 10) || 20));
+  const offset = (page - 1) * pageSize;
+  const params = [];
+  const whereSql = buildNewsWhere(filters, params);
+
+  const countRow = await query.get(`SELECT COUNT(*) as count FROM news${whereSql}`, params);
+  const items = await query.all(
+    `SELECT ${NEWS_SELECT_COLUMNS} FROM news${whereSql}${buildNewsOrder(filters.sort)} LIMIT ? OFFSET ?`,
+    [...params, pageSize, offset]
+  );
+
+  return {
+    items,
+    total: countRow?.count || 0,
+    page,
+    pageSize
+  };
 }
 
 async function getNewsCount() {
@@ -217,6 +248,7 @@ async function getSources() {
 module.exports = {
   aggregateAllNews,
   getNews,
+  getNewsPage,
   getNewsCount,
   getNewsById,
   getAvailableCompanies,

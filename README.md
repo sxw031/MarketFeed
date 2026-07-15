@@ -40,10 +40,10 @@ A professional, AI-powered news aggregation and strategic intelligence platform 
 | **Frontend** | HTML5, CSS3 (Custom Properties, Glassmorphism), Vanilla JavaScript |
 | **Backend** | Node.js (>=18), Express |
 | **Database** | SQLite with compound indexes and auto-cleanup (120-day retention) |
-| **TTS** | Python edge-tts (Neural voice) with Google TTS fallback |
+| **TTS** | Google TTS by default, optional `edge-tts` override via env |
 | **Scraping** | Axios, RSS-Parser, Bing/Google News parsing |
 | **Security** | HSTS, X-Frame-Options, CSP headers, rate limiting (100 req/min/IP) |
-| **Performance** | gzip compression, in-memory caching, ETag/Cache-Control |
+| **Performance** | gzip compression, SQLite pagination, in-memory preview/audio caching, ETag/Cache-Control |
 
 ## Installation & Setup
 
@@ -63,11 +63,13 @@ Create a `.env` file in the root directory (optional — all defaults work out o
 PORT=3000
 NODE_ENV=development
 DB_PATH=./data/news.db
-UPDATE_INTERVAL=60
-ENABLE_WEB_SEARCH=true
+AUTO_SYNC_ENABLED=true
+AUTO_SYNC_INTERVAL_MS=21600000
+INITIAL_SYNC_ENABLED=false
+ENABLE_EDGE_TTS=false
 ```
 
-No API keys are required. All news sources are public.
+No API keys are required. All news sources are public. `ENABLE_EDGE_TTS=true` is optional and only needed if you want to enable the Python TTS path.
 
 ### 3. Start the application
 
@@ -118,8 +120,11 @@ MarketFeed/
    - **Start Command**: `npm start`
 4. Environment Variables (optional):
    - `NODE_ENV`: `production`
+   - `AUTO_SYNC_INTERVAL_MS`: `21600000`
+   - `INITIAL_SYNC_ENABLED`: `false`
+   - `ENABLE_EDGE_TTS`: `false`
 
-No other environment variables are required. The build script automatically installs Python `edge-tts` for podcast generation.
+No other environment variables are required. The default deployment path avoids Python setup during build and keeps cold starts lighter for small Render instances.
 
 ## API Endpoints
 

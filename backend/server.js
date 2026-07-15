@@ -4,10 +4,11 @@ const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
 const newsRoutes = require('./routes/news');
+const { createAiRouter } = require('./routes/ai');
 const { aggregateAllNews, getNews, getNewsCount } = require('./services/newsAggregator');
-const { generateHeuristicReport } = require('./services/strategyEngine');
 const { initIPOTable, getIPOs, getIPOStats } = require('./services/ipoTracker');
-const { generateChatAnswer } = require('./services/aiChatService');
+const { cleanupOldArticles } = require('./models/db');
+const { startBackgroundSync } = require('./services/backgroundSync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,62 +72,9 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
   }
 }));
 
-// Simple in-memory cache for API responses
-const apiCache = new Map();
-const CACHE_TTL = 60 * 1000; // 1 minute cache for news API
-function getCached(key) {
-  const entry = apiCache.get(key);
-  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
-  return null;
-}
-function setCache(key, data) {
-  apiCache.set(key, { data, ts: Date.now() });
-  // Limit cache size
-  if (apiCache.size > 50) {
-    const oldest = apiCache.keys().next().value;
-    apiCache.delete(oldest);
-  }
-}
-
 // API Routes
 app.use('/api/news', newsRoutes);
-
-// AI Strategy Report (heuristic, no API key needed)
-// Supports period: 'daily', 'weekly', 'monthly', 'quarterly'
-app.post('/api/news/ai/strategy', async (req, res) => {
-  try {
-    const { news, period = 'daily' } = req.body;
-    let articles = news || [];
-
-    // For weekly/monthly/quarterly, fetch from DB if no news provided or if period requires more data
-    if (['weekly', 'monthly', 'quarterly'].includes(period)) {
-      const daysMap = { weekly: 7, monthly: 30, quarterly: 90 };
-      const days = daysMap[period] || 1;
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dbArticles = await getNews({ startDate: startDate.toISOString(), limit: 500 });
-      if (dbArticles && dbArticles.length > 0) articles = dbArticles;
-    }
-
-    const report = generateHeuristicReport(articles, period);
-    res.json({ success: true, report, period, articleCount: articles.length });
-  } catch (error) {
-    console.error('[Strategy]', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// AI Chat - Smart heuristic Q&A for account managers
-app.post('/api/news/ai/chat', async (req, res) => {
-  try {
-    const { query, context, history } = req.body;
-    const answer = generateChatAnswer(query, context, Array.isArray(history) ? history.slice(-10) : []);
-    res.json({ success: true, answer });
-  } catch (error) {
-    console.error('[AI Chat]', error.message);
-    res.json({ success: true, answer: 'Sorry, I hit a snag processing that. Could you rephrase your question?' });
-  }
-});
+app.use('/api/news/ai', createAiRouter({ getNews }));
 
 // ==================== EMAIL SUBSCRIPTION ====================
 const { initSubscriptionTable, subscribe, unsubscribe, getActiveSubscriptions, generateStrategySuggestions } = require('./services/emailService');
@@ -200,36 +148,7 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[AlphaFeed] Running on port ${PORT}`);
-
-  // DB maintenance on startup
-  const { cleanupOldArticles } = require('./models/db');
-  setTimeout(() => cleanupOldArticles(), 5000);
-
-  // Auto-sync on startup (non-blocking)
-  setTimeout(async () => {
-    try {
-      const count = await getNewsCount();
-      console.log(`[Startup] Current news count: ${count}`);
-      if (count < 10) {
-        console.log('[Startup] Low news count, triggering initial sync...');
-        await aggregateAllNews({
-          onProgress: (name) => console.log(`  Syncing: ${name}`)
-        });
-      }
-    } catch (err) {
-      console.error('[Startup] Auto-sync failed:', err.message);
-    }
-  }, 2000);
-
-  // Recurring sync every 2 hours
-  setInterval(async () => {
-    console.log('[Scheduled] Running periodic sync...');
-    try {
-      await aggregateAllNews({});
-    } catch (err) {
-      console.error('[Scheduled] Sync failed:', err.message);
-    }
-  }, 2 * 60 * 60 * 1000);
+  startBackgroundSync({ aggregateAllNews, getNewsCount, cleanupOldArticles });
 });
 
 module.exports = app;
