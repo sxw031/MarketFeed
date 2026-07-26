@@ -82,6 +82,17 @@ const LOGO_MAP = {
   'CATL (宁德时代)': 'https://img.logo.dev/catl.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
   'SpaceX': 'https://img.logo.dev/spacex.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
   'SF Express (顺丰)': 'https://img.logo.dev/sf-express.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Bank of America': 'https://img.logo.dev/bankofamerica.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'PayPal': 'https://img.logo.dev/paypal.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Adobe': 'https://img.logo.dev/adobe.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Palantir': 'https://img.logo.dev/palantir.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'DeepSeek': 'https://img.logo.dev/deepseek.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Moonshot AI': 'https://img.logo.dev/moonshot.cn?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Disney': 'https://img.logo.dev/disney.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Nike': 'https://img.logo.dev/nike.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'Reddit': 'https://img.logo.dev/reddit.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'X (Twitter)': 'https://img.logo.dev/x.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
+  'RedNote (Xiaohongshu)': 'https://img.logo.dev/xiaohongshu.com?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ',
 };
 
 // Relevance keywords for sorting
