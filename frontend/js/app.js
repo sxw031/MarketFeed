@@ -1607,6 +1607,16 @@ function sanitizeUrl(url) {
       </div>`;
   }
 
+  // Calendar-month difference between two dates, rounded up so a date within
+  // the current calendar month but past "today" still counts as at least 1
+  // month away. Using days/30 instead (e.g. 31 days = ceil(31/30) = 2) makes
+  // dates exactly one calendar month out incorrectly show as "2mo away".
+  function monthsUntil(from, to) {
+    let months = (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + (to.getUTCMonth() - from.getUTCMonth());
+    if (to.getUTCDate() > from.getUTCDate()) months += 1;
+    return Math.max(1, months);
+  }
+
   function renderIPOList(ipos) {
     if (!ipos.length) {
       ipoList.innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:2.5rem;margin-bottom:1rem;">🚀</div><h3>No IPOs in this window</h3><p>Try expanding the time range.</p></div>';
@@ -1615,8 +1625,9 @@ function sanitizeUrl(url) {
     ipoList.innerHTML = ipos.map(ipo => {
       const statusClass = ipo.status === 'filed' ? 'status-filed' : ipo.status === 'preparing' ? 'status-preparing' : 'status-rumored';
       const expectedDate = new Date(ipo.expected_date);
-      const daysUntil = Math.ceil((expectedDate - new Date()) / 86400000);
-      const timeLabel = daysUntil < 0 ? 'Overdue' : daysUntil < 7 ? `${daysUntil}d away` : daysUntil < 30 ? `${Math.ceil(daysUntil/7)}w away` : `${Math.ceil(daysUntil/30)}mo away`;
+      const now = new Date();
+      const daysUntil = Math.ceil((expectedDate - now) / 86400000);
+      const timeLabel = daysUntil < 0 ? 'Overdue' : daysUntil < 7 ? `${daysUntil}d away` : daysUntil < 30 ? `${Math.ceil(daysUntil/7)}w away` : `${monthsUntil(now, expectedDate)}mo away`;
       return `
       <div class="ipo-card">
         <div class="ipo-card-header">

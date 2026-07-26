@@ -98,12 +98,16 @@ async function getIPOs({ window = '6months', status = null } = {}) {
   const now = new Date();
   let endDate;
 
+  // Use calendar-month arithmetic (matching monthsFromNow) rather than fixed
+  // day counts (e.g. 30/90/180 days) — a 30-day approximation of "1 month"
+  // can fall a day short of a real calendar month (e.g. 31-day months),
+  // incorrectly excluding IPOs expected exactly one month out.
   switch (window) {
     case '1week': endDate = new Date(now.getTime() + 7 * 86400000); break;
-    case '1month': endDate = new Date(now.getTime() + 30 * 86400000); break;
-    case '3months': endDate = new Date(now.getTime() + 90 * 86400000); break;
+    case '1month': endDate = new Date(monthsFromNow(1)); break;
+    case '3months': endDate = new Date(monthsFromNow(3)); break;
     case '6months':
-    default: endDate = new Date(now.getTime() + 180 * 86400000); break;
+    default: endDate = new Date(monthsFromNow(6)); break;
   }
 
   let sql = `SELECT * FROM ipo_watchlist WHERE expected_date <= ? AND status != 'public'`;
