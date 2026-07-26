@@ -7,7 +7,17 @@
  * 3. Buying Committee (5pts) - Personas, motivations, pain points
  * 4. Real-Life Stories (5pts) - Before/after, emotional + business impact
  * 5. Competitive Edge (5pts) - Differentiators woven into customer story
+ *
+ * Beyond the rubric, the report also surfaces broader strategic-thinking
+ * signals so it reads like analyst research rather than a template:
+ * 6. Adjacent Sector Patterns - cross-industry themes the signals suggest
+ * 7. Emerging Technology Signals - nascent tech mentioned in the news
+ * 8. Macro Signals & Assumptions to Challenge - macroeconomic context and
+ *    the conventional wisdom it should make us question
+ * 9. Multiple Futures - scenario planning instead of one linear forecast
  */
+
+const { COMPANIES } = require('../config/sources');
 
 // --- Yearly Summary Data ---
 const YEARLY_EVENTS = {
@@ -143,8 +153,53 @@ const INDUSTRY_CONTEXT = {
   'Citigroup': { vertical: 'Banking & Financial Services', priority: 'Institutional messaging + API banking alerts' },
   'Binance': { vertical: 'Cryptocurrency & Fintech', priority: 'Security OTPs + transaction notifications' },
   'ShopBack': { vertical: 'E-commerce & Fintech', priority: 'Cashback notifications + payment alerts' },
-  'Aeon Credit': { vertical: 'Consumer Finance', priority: 'Payment reminders + loan notifications' }
+  'Aeon Credit': { vertical: 'Consumer Finance', priority: 'Payment reminders + loan notifications' },
+  // --- Added company contexts ---
+  'JPMorgan Chase': { vertical: 'Banking & Financial Services', priority: 'Institutional alerts + fraud prevention at global scale' },
+  'Bank of America': { vertical: 'Banking & Financial Services', priority: 'Consumer banking alerts + secure authentication across 60M+ digital users' },
+  'PayPal': { vertical: 'Digital Payments', priority: 'Transaction confirmations + buyer/seller dispute notifications' },
+  'Adobe': { vertical: 'Enterprise Software & Creative Cloud', priority: 'Subscription lifecycle messaging + license renewal notifications' },
+  'Nike': { vertical: 'Consumer Brands & Retail', priority: 'Membership app engagement + product drop/launch notifications' },
+  'Palantir': { vertical: 'Enterprise AI & Data Analytics', priority: 'Mission-critical operational alerts + secure enterprise/government messaging' },
+  'Disney': { vertical: 'Media & Entertainment', priority: 'Subscriber lifecycle messaging + content and park release alerts' },
+  'Reddit': { vertical: 'Social Media & Community', priority: 'Community trust & safety verification + moderator alerting' },
+  'X (Twitter)': { vertical: 'Social Media & Community', priority: 'Account verification + real-time engagement notifications at massive scale' },
+  'RedNote (Xiaohongshu)': { vertical: 'Social Media & Community', priority: 'Cross-border creator notifications + community trust verification' },
+  'DeepSeek': { vertical: 'AI & Foundation Models', priority: 'API status alerts + developer notifications amid hypergrowth adoption' },
+  'Moonshot AI': { vertical: 'AI & Foundation Models', priority: 'Usage-based billing alerts + developer platform notifications' }
 };
+
+// Category → generic vertical/priority used whenever a tracked company does
+// not have a bespoke INDUSTRY_CONTEXT entry above. Keeps the report
+// meaningful for every company in config/sources.js, not just a hardcoded
+// subset, without requiring a manual entry per company.
+const CATEGORY_FALLBACK_CONTEXT = {
+  'Finance': { vertical: 'Banking & Financial Services', priority: 'Secure customer authentication + omnichannel notifications' },
+  'Crypto': { vertical: 'Cryptocurrency & Fintech', priority: 'Security OTPs + transaction notifications' },
+  'Big Tech': { vertical: 'Enterprise Technology & Cloud', priority: 'Developer platform messaging + customer notifications at global scale' },
+  'AI': { vertical: 'AI & Foundation Models', priority: 'API status alerts + developer notifications amid hypergrowth adoption' },
+  'E-commerce': { vertical: 'E-commerce & Retail', priority: 'Order tracking + promotional messaging at scale' },
+  'Mobility': { vertical: 'Mobility & Transport', priority: 'Real-time trip updates + safety messaging' },
+  'Telecom': { vertical: 'Telecommunications', priority: 'RCS business messaging + enterprise CPaaS' },
+  'Entertainment': { vertical: 'Media & Entertainment', priority: 'Subscriber lifecycle messaging + content release alerts' },
+  'Social Media': { vertical: 'Social Media & Community', priority: 'Community trust & safety verification + creator notifications' },
+  'Auto & Energy': { vertical: 'Auto & Energy', priority: 'Delivery/service appointment alerts + firmware update notifications' },
+  'Aerospace': { vertical: 'Aerospace & Defense', priority: 'Mission-critical status alerts + supply chain coordination' },
+  'Logistics': { vertical: 'Logistics', priority: 'Shipment tracking + delivery notifications at scale' }
+};
+
+// Company name -> category, derived once from the source-of-truth company
+// list so this file never has to duplicate/maintain that mapping by hand.
+const COMPANY_CATEGORY = Object.fromEntries(COMPANIES.map(c => [c.name, c.category]));
+
+const DEFAULT_INDUSTRY_CONTEXT = { vertical: 'Enterprise Technology & Cloud', priority: 'Customer notifications + secure omnichannel messaging' };
+
+/** Resolve the best-known industry context for a company: bespoke entry -> category fallback -> generic default. */
+function getIndustryContext(companyName) {
+  return INDUSTRY_CONTEXT[companyName]
+    || CATEGORY_FALLBACK_CONTEXT[COMPANY_CATEGORY[companyName]]
+    || DEFAULT_INDUSTRY_CONTEXT;
+}
 
 const BUYING_COMMITTEE = {
   CTO_VP_ENGINEERING: { title: 'CTO / VP Engineering', priorities: ['System reliability & uptime', 'API performance', 'Security compliance'], painPoints: ['Vendor lock-in', 'Integration complexity', 'Scaling bottlenecks'], pitch: 'Single API for all channels, 99.99% uptime SLA, comprehensive SDKs' },
@@ -168,7 +223,18 @@ const SUCCESS_STORIES = {
   'Technology & Media': { customer: 'a social media platform', before: 'creator notifications via in-app only, 40% of creators missed time-sensitive opportunities', after: 'multi-channel creator alerts (SMS + push + email) with preference management', impact: 'Creator response rate improved 3x, platform engagement hours increased 25%', timeframe: '6 weeks' },
   'Digital Banking': { customer: 'a digital-first bank in Asia', before: 'transaction alerts via push had 50% delivery rate, causing fraud detection delays', after: 'real-time SMS + WhatsApp transaction alerts with one-tap fraud reporting', impact: 'Fraud reporting speed improved 80%, false positive resolution time cut from 48h to 2h', timeframe: '4 weeks' },
   'E-commerce & Retail': { customer: 'a fast-growing e-commerce marketplace', before: 'promotional messages via email had 12% open rate, flash sales underperformed', after: 'RCS rich media promotions with carousel product displays and buy buttons', impact: 'Flash sale conversion increased 340%, unsubscribe rate dropped 60%', timeframe: '3 weeks to first campaign' },
-  'Super App & Fintech': { customer: 'a Southeast Asian fintech super app', before: 'payment confirmations via push had unreliable delivery, causing user anxiety', after: 'instant SMS confirmations + WhatsApp receipts with smart channel selection', impact: 'User trust score improved 45%, payment dispute rate dropped 70%', timeframe: '4 weeks' }
+  'Super App & Fintech': { customer: 'a Southeast Asian fintech super app', before: 'payment confirmations via push had unreliable delivery, causing user anxiety', after: 'instant SMS confirmations + WhatsApp receipts with smart channel selection', impact: 'User trust score improved 45%, payment dispute rate dropped 70%', timeframe: '4 weeks' },
+  // --- Stories for newly tracked verticals / category fallbacks ---
+  'Digital Payments': { customer: 'a global digital wallet and payments provider', before: 'transaction confirmations via email had 30% open rate, driving disputes and chargebacks', after: 'real-time SMS + push confirmations with one-tap dispute resolution links', impact: 'Chargeback rate dropped 38%, buyer trust score up 27%, support contact rate down 44%', timeframe: '5 weeks integration' },
+  'Enterprise Software & Creative Cloud': { customer: 'a global SaaS and creative-tools provider', before: 'subscription renewal reminders via email alone had 20% open rate, driving avoidable churn', after: 'multi-channel renewal and license alerts (email + SMS + in-app) with one-tap renew', impact: 'Involuntary churn dropped 31%, renewal conversion up 19%, support tickets down 26%', timeframe: '6 weeks to roll out globally' },
+  'Consumer Brands & Retail': { customer: 'a global sportswear and membership-app brand', before: 'product drop and restock alerts relied on push only, missing 45% of interested members', after: 'omnichannel drop alerts (push + SMS + WhatsApp) with waitlist and priority access links', impact: 'Drop-day conversion increased 52%, membership app engagement up 33%', timeframe: '4 weeks to first campaign' },
+  'Enterprise AI & Data Analytics': { customer: 'a mission-critical enterprise/government data analytics platform', before: 'operational alerts were siloed across internal tools, delaying incident response', after: 'unified, verified operator alerting (SMS + voice escalation) for critical system events', impact: 'Incident acknowledgment time cut 65%, on-call escalation errors eliminated', timeframe: '8 weeks for phased rollout' },
+  'Media & Entertainment': { customer: 'a global media and entertainment conglomerate', before: 'streaming and park-visit alerts via app push alone reached only 55% of subscribers', after: 'multi-channel lifecycle messaging (push + email + SMS) for renewals, releases, and visit reminders', impact: 'Subscriber win-back rate up 29%, renewal rate improved 14%, support calls down 22%', timeframe: '6 weeks to deploy across properties' },
+  'Social Media & Community': { customer: 'a large social/community platform', before: 'account verification relied on email only, with 20% failure/abandonment in high-risk regions', after: 'adaptive verification (SMS OTP + silent verify) plus creator/moderator alerting', impact: 'Verification success rate reached 98%, fake-account signups dropped 55%, moderator response time improved 40%', timeframe: '5 weeks to deploy' },
+  'Auto & Energy': { customer: 'a global EV and clean-energy manufacturer', before: 'service and firmware-update notices via app push were missed by 40% of owners', after: 'omnichannel delivery, service, and OTA update alerts (SMS + push + email)', impact: 'Missed-service-appointment rate dropped 48%, OTA update adoption up 35%', timeframe: '4 weeks integration' },
+  'Aerospace & Defense': { customer: 'a commercial aerospace and launch-services company', before: 'mission and supply-chain status updates were manual and phone-tree based, slowing coordination', after: 'automated, verified status alerts (SMS + voice) across mission control and supplier network', impact: 'Coordination response time cut 60%, missed-update incidents eliminated', timeframe: '10 weeks for mission-critical rollout' },
+  'Logistics': { customer: 'a major logistics and last-mile delivery operator', before: 'delivery status updates via email had 25% open rate, flooding call centers with "where is my package" calls', after: 'proactive SMS + WhatsApp tracking with two-way delivery-window rescheduling', impact: 'WISMO calls dropped 58%, on-time delivery satisfaction up 24%', timeframe: '5 weeks across major hubs' },
+  'AI & Foundation Models': { customer: 'a fast-growing AI foundation-model provider', before: 'API outage and rate-limit notices were buried in a status-page blog, leaving developers blindsided', after: 'real-time developer alerts (email + SMS + webhook-triggered messaging) for usage, billing, and incident status', impact: 'Developer-reported "surprise" outages dropped 70%, support ticket volume down 33%', timeframe: '3 weeks integration' }
 };
 
 const DIFFERENTIATORS = {
@@ -227,6 +293,93 @@ function identifyBuyingCommittee(articles) {
     if (!relevant.includes('COO_VP_OPERATIONS')) relevant.push('COO_VP_OPERATIONS');
   }
   return relevant.slice(0, 4);
+}
+
+// =====================================================
+// STRATEGIC PATTERN ANALYSIS
+// Cross-sector themes, emerging tech, macro signals, and scenario planning —
+// designed to push the report beyond a single linear projection.
+// =====================================================
+
+// Themes that are meaningful only when they show up across *multiple*
+// different company categories in the same period (a real cross-sector
+// pattern), rather than being confined to one industry.
+const ADJACENT_PATTERN_THEMES = {
+  'AI Adoption': ['ai', 'artificial intelligence', 'machine learning', 'generative ai', 'llm', 'copilot', 'agent'],
+  'Security & Fraud Pressure': ['fraud', 'breach', 'security', 'cyberattack', 'hack', 'vulnerability', 'phishing'],
+  'Regulatory Pressure': ['regulation', 'regulator', 'antitrust', 'compliance', 'fine', 'lawsuit', 'ban', 'investigation'],
+  'Cost Discipline': ['layoff', 'restructuring', 'cost-cutting', 'efficiency', 'headcount', 'downsizing'],
+  'Platform Consolidation': ['acquisition', 'merger', 'acquire', 'buyout', 'consolidat'],
+  'CX Automation Investment': ['customer experience', 'personalization', 'omnichannel', 'self-service', 'chatbot', 'support automation']
+};
+
+const EMERGING_TECH_KEYWORDS = {
+  'Agentic AI / AI Agents': ['agentic', 'ai agent', 'autonomous agent', 'copilot'],
+  'Foundation Models & LLMs': ['foundation model', 'large language model', 'llm', 'gpt', 'multimodal'],
+  'Autonomous Systems': ['autonomous', 'self-driving', 'robotaxi', 'drone', 'robotics'],
+  'Edge & Real-Time Compute': ['edge computing', 'real-time processing', 'low-latency', '5g', '6g'],
+  'Web3 & Digital Assets': ['blockchain', 'web3', 'stablecoin', 'tokeniz', 'crypto'],
+  'Quantum Computing': ['quantum computing', 'quantum chip', 'qubit']
+};
+
+// Each macro theme pairs a detection keyword set with the conventional
+// assumption it invites, plus a challenge to that assumption — this is what
+// keeps the report from defaulting to "obvious" conclusions.
+const MACRO_SIGNAL_THEMES = {
+  'Rate & Inflation Environment': { keywords: ['interest rate', 'inflation', 'rate cut', 'rate hike', 'federal reserve', 'central bank'], assumption: 'Messaging/communication budgets shrink whenever rates rise.', challenge: 'Rate-sensitive accounts often shift spend toward retention and automation (lower CAC) — lead with ROI, not premium features.' },
+  'Trade & Tariff Policy': { keywords: ['tariff', 'trade war', 'export control', 'import duty', 'sanction'], assumption: 'Global vendors are all equally exposed to tariff risk.', challenge: 'Tariff-hit companies localize supply chains and fulfillment fast — an opening to pitch in-region number provisioning and data residency, not just price.' },
+  'Regulatory & Antitrust': { keywords: ['antitrust', 'regulation', 'regulator', 'compliance', 'gdpr', 'data privacy law'], assumption: 'Regulatory scrutiny is a reason to wait before engaging.', challenge: 'Regulatory pressure usually accelerates demand for auditable, compliant communication infrastructure — the opposite of "wait and see".' },
+  'Capital Markets & IPO Activity': { keywords: ['ipo', 'public listing', 'funding round', 'venture capital', 'valuation'], assumption: 'Pre-IPO companies only care about growth metrics.', challenge: 'Pre-IPO accounts also need provable governance and reliability metrics for public disclosures — an opening for uptime/SLA-led conversations.' },
+  'Workforce & Cost Discipline': { keywords: ['layoff', 'hiring freeze', 'restructuring', 'cost-cutting'], assumption: 'Cost-cutting accounts have no budget for new vendors.', challenge: 'Cost-cutting usually means consolidating vendors, not eliminating spend — position as a vendor-replacement, not an added cost.' }
+};
+
+/** Scan articles for keyword-set hits and return {label: matchingArticles[]} sorted by hit count, keeping only labels with >= minHits matches. */
+function scanKeywordThemes(articles, themeMap, minHits = 1) {
+  const hits = {};
+  for (const label of Object.keys(themeMap)) hits[label] = [];
+  articles.forEach(article => {
+    const text = ((article.title || '') + ' ' + (article.description || '')).toLowerCase();
+    for (const [label, keywords] of Object.entries(themeMap)) {
+      if (keywords.some(kw => text.includes(kw))) hits[label].push(article);
+    }
+  });
+  return Object.entries(hits)
+    .filter(([, matches]) => matches.length >= minHits)
+    .sort((a, b) => b[1].length - a[1].length);
+}
+
+/**
+ * Build 3 alternative futures instead of one linear projection. Scenarios are
+ * weighted (not just labeled) using the actual theme mix detected this period,
+ * so the "likely" scenario changes as the underlying signals change.
+ */
+function buildFutureScenarios(themeCounts, totalSignals) {
+  const pct = (n) => totalSignals > 0 ? Math.round((n / totalSignals) * 100) : 0;
+  const expansionPct = pct(themeCounts.EXPANSION);
+  const riskPct = pct(themeCounts.RISK);
+  const financialPct = pct(themeCounts.FINANCIAL);
+
+  const scenarios = [
+    {
+      name: 'Base Case — Steady Continuation',
+      likelihood: `${Math.max(35, 100 - expansionPct - riskPct)}%`,
+      trigger: 'Current mix of expansion, partnership, and financial signals continues at roughly today\'s pace.',
+      implication: 'Standard cadence of check-ins; use existing signals to reinforce ongoing use cases rather than pitching anything new.'
+    },
+    {
+      name: 'Upside — Acceleration',
+      likelihood: `${Math.min(85, expansionPct + Math.round(financialPct / 2))}%`,
+      trigger: `Expansion/financial signals (${expansionPct}% of this period's news) compound — new markets, funding, or product launches stack on each other.`,
+      implication: 'Pre-position volume-based pricing and global reach messaging now, before the account\'s scaling need becomes an RFP you\'re competing for.'
+    },
+    {
+      name: 'Disruption — Downside Shock',
+      likelihood: `${Math.min(70, riskPct + 15)}%`,
+      trigger: `Risk signals (outages, layoffs, regulatory action — ${riskPct}% of this period's news) intensify or a competitor/regulator event forces a rapid pivot.`,
+      implication: 'Lead with reliability, failover, and cost-consolidation messaging; disrupted accounts buy infrastructure that reduces risk, not features that add it.'
+    }
+  ];
+  return scenarios;
 }
 
 // =====================================================
@@ -320,8 +473,8 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `## 3. Buying Committee Map\n\n`;
   topCompanies.slice(0, 2).forEach(([company, articles]) => {
     const personas = identifyBuyingCommittee(articles);
-    const indCtx = INDUSTRY_CONTEXT[company];
-    report += `### ${company} (${indCtx?.vertical || 'Technology'})\n\n`;
+    const indCtx = getIndustryContext(company);
+    report += `### ${company} (${indCtx.vertical})\n\n`;
     report += `| Persona | Priority | Pain Point | Value Proposition |\n`;
     report += `|---------|----------|------------|-------------------|\n`;
     personas.slice(0, 3).forEach(pk => {
@@ -334,27 +487,39 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `| Committee Question |\n|---|\n| *"Who else needs to be involved in a communication infrastructure decision? What keeps them up at night?"* |\n\n`;
 
   // ===== SECTION 4: SUCCESS STORY =====
+  // Tied to the account's actual detected signal (not a generic placeholder)
+  // so the story reads as a relevant, specific talking point rather than
+  // boilerplate. Falls back gracefully to a category-derived vertical for
+  // any tracked company that doesn't have a bespoke INDUSTRY_CONTEXT entry.
   report += `## 4. Success Story to Tell\n\n`;
   const storyCompany = topCompanies[0]?.[0] || companies[0];
-  const storyCtx = INDUSTRY_CONTEXT[storyCompany];
-  const story = SUCCESS_STORIES[storyCtx?.vertical] || SUCCESS_STORIES['Banking & Financial Services'];
+  const storyArticles = grouped[storyCompany] || [];
+  const storyCtx = getIndustryContext(storyCompany);
+  const story = SUCCESS_STORIES[storyCtx.vertical] || SUCCESS_STORIES['Banking & Financial Services'];
+  const storySignal = storyArticles[0];
+  const storySignalTitle = storySignal ? storySignal.title.substring(0, 70) : null;
 
-  report += `| | For your conversation with **${storyCompany}** |\n|---|---|\n`;
-  report += `| **Customer** | ${story.customer} |\n`;
+  report += `| | For your conversation with **${storyCompany}** (${storyCtx.vertical}) |\n|---|---|\n`;
+  if (storySignalTitle) {
+    report += `| **Their signal** | "${storySignalTitle}${storySignal.title.length > 70 ? '...' : ''}" |\n`;
+  }
+  report += `| **Comparable customer** | ${story.customer} |\n`;
   report += `| **Before** | ${story.before} |\n`;
   report += `| **After** | ${story.after} |\n`;
   report += `| **Results** | ${story.impact} |\n`;
   report += `| **Timeline** | ${story.timeframe} |\n`;
-  report += `\n| Story Bridge |\n|---|\n| *"Does this sound familiar? Given your recent [signal], are you facing similar challenges around [pain point]?"* |\n\n`;
+  report += `| **Why it's relevant to them** | ${storyCompany}'s priority is ${storyCtx.priority.toLowerCase()} — the same gap this comparable customer closed |\n`;
+  const bridgeSignal = storySignalTitle ? `your recent news on "${storySignalTitle}${storySignal.title.length > 70 ? '...' : ''}"` : `your team's focus on ${storyCtx.priority.toLowerCase()}`;
+  report += `\n| Story Bridge |\n|---|\n| *"Does this sound familiar? Given ${bridgeSignal}, are you facing similar challenges around ${storyCtx.priority.toLowerCase()}?"* |\n\n`;
 
-  // Second story if different vertical
+  // Second story if a different vertical is also prominent this period
   if (topCompanies.length > 1) {
     const co2 = topCompanies[1][0];
-    const ctx2 = INDUSTRY_CONTEXT[co2];
-    const story2 = SUCCESS_STORIES[ctx2?.vertical] || SUCCESS_STORIES['E-commerce & Cloud'];
-    if (ctx2?.vertical !== storyCtx?.vertical) {
-      report += `| | For **${co2}** |\n|---|---|\n`;
-      report += `| **Customer** | ${story2.customer} |\n`;
+    const ctx2 = getIndustryContext(co2);
+    const story2 = SUCCESS_STORIES[ctx2.vertical] || SUCCESS_STORIES['E-commerce & Cloud'];
+    if (ctx2.vertical !== storyCtx.vertical) {
+      report += `| | For **${co2}** (${ctx2.vertical}) |\n|---|---|\n`;
+      report += `| **Comparable customer** | ${story2.customer} |\n`;
       report += `| **Key result** | ${story2.impact.split(',')[0]} |\n`;
       report += `| **Timeline** | ${story2.timeframe} |\n\n`;
     }
@@ -383,6 +548,92 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
 
   diffRows.slice(0, 4).forEach(row => { report += row + '\n'; });
   report += `\n| Closing Question |\n|---|\n| *"Based on what we discussed, do you see how this approach would address [their challenge] differently than what you have today?"* |\n\n`;
+
+  // ===== SECTION 6: ADJACENT SECTOR PATTERNS =====
+  // Only surfaces a theme if it shows up across 2+ distinct company
+  // categories — a genuine cross-industry pattern, not a single company's news.
+  report += `## 6. Adjacent Sector Patterns\n\n`;
+  const adjacentHits = scanKeywordThemes(newsArticles, ADJACENT_PATTERN_THEMES, 2);
+  const crossSectorPatterns = adjacentHits.filter(([, matches]) => {
+    const categories = new Set(matches.map(a => COMPANY_CATEGORY[a.company]).filter(Boolean));
+    return categories.size >= 2;
+  });
+  if (crossSectorPatterns.length > 0) {
+    report += `| Pattern | Sectors Involved | Companies Showing It | What It Suggests |\n`;
+    report += `|---------|-------------------|----------------------|-------------------|\n`;
+    crossSectorPatterns.slice(0, 5).forEach(([theme, matches]) => {
+      const sectors = [...new Set(matches.map(a => COMPANY_CATEGORY[a.company]).filter(Boolean))].join(', ');
+      const cos = [...new Set(matches.map(a => a.company))].slice(0, 4).join(', ');
+      report += `| **${theme}** | ${sectors} | ${cos} | ${matches.length} accounts moving in parallel — worth a cross-account playbook, not one-off pitches |\n`;
+    });
+  } else {
+    report += `| | |\n|---|---|\n| **Observation** | No theme repeated across 2+ distinct sectors this period — signals this period are sector-specific rather than systemic |\n`;
+  }
+  report += `\n| Analyst Note |\n|---|\n| *A pattern appearing in unrelated sectors (e.g. finance AND retail AND AI) is a stronger signal than the same pattern repeating within one industry — it points to a macro driver, not a sector fad.* |\n\n`;
+
+  // ===== SECTION 7: EMERGING TECHNOLOGY SIGNALS =====
+  report += `## 7. Emerging Technology Signals\n\n`;
+  const emergingTechHits = scanKeywordThemes(newsArticles, EMERGING_TECH_KEYWORDS, 1);
+  if (emergingTechHits.length > 0) {
+    report += `| Technology | Signals | Leading Accounts | CPaaS Implication |\n`;
+    report += `|------------|---------|-------------------|--------------------|\n`;
+    const techImplications = {
+      'Agentic AI / AI Agents': 'Agents need machine-to-human escalation channels when they hit a wall — a new notification/verification use case',
+      'Foundation Models & LLMs': 'Model providers need usage, billing, and incident alerts at developer scale',
+      'Autonomous Systems': 'Autonomous fleets need real-time safety and status messaging with zero tolerance for delivery failure',
+      'Edge & Real-Time Compute': 'Low-latency use cases raise the bar on message delivery speed, not just reach',
+      'Web3 & Digital Assets': 'Wallet and transaction alerts remain a top security/trust use case as digital-asset adoption grows',
+      'Quantum Computing': 'Early-stage; worth monitoring for future security/verification implications, not an immediate pitch'
+    };
+    emergingTechHits.slice(0, 5).forEach(([tech, matches]) => {
+      const cos = [...new Set(matches.map(a => a.company))].slice(0, 3).join(', ');
+      report += `| **${tech}** | ${matches.length} | ${cos} | ${techImplications[tech] || 'Monitor for downstream communication needs'} |\n`;
+    });
+  } else {
+    report += `| | |\n|---|---|\n| **Observation** | No emerging-technology keywords detected this period — revisit with a broader time range (weekly/monthly) for clearer signal |\n`;
+  }
+  report += `\n`;
+
+  // ===== SECTION 8: MACRO SIGNALS & ASSUMPTIONS TO CHALLENGE =====
+  report += `## 8. Macro Signals & Assumptions to Challenge\n\n`;
+  const macroHits = Object.entries(MACRO_SIGNAL_THEMES)
+    .map(([theme, cfg]) => {
+      const matches = newsArticles.filter(a => {
+        const text = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
+        return cfg.keywords.some(kw => text.includes(kw));
+      });
+      return { theme, matches, ...cfg };
+    })
+    .filter(m => m.matches.length > 0)
+    .sort((a, b) => b.matches.length - a.matches.length);
+  if (macroHits.length > 0) {
+    report += `| Macro Signal | Evidence | Conventional Assumption | Challenge It |\n`;
+    report += `|--------------|----------|--------------------------|---------------|\n`;
+    macroHits.slice(0, 5).forEach(m => {
+      const evidence = `${m.matches.length} signal(s) incl. ${[...new Set(m.matches.map(a => a.company))].slice(0, 2).join(', ')}`;
+      report += `| **${m.theme}** | ${evidence} | ${m.assumption} | ${m.challenge} |\n`;
+    });
+  } else {
+    report += `| | |\n|---|---|\n| **Observation** | No macroeconomic keywords detected this period — assume stable conditions, but re-check on the next monthly/quarterly report |\n`;
+  }
+  report += `\n| Reframe Question |\n|---|\n| *"Everyone assumes [conventional wisdom] right now — but what if the opposite is true for your business? What would that mean for how we should be working together?"* |\n\n`;
+
+  // ===== SECTION 9: MULTIPLE FUTURES (SCENARIO PLANNING) =====
+  // Deliberately presents 3 branches instead of one linear forecast so the
+  // account team plans for optionality rather than a single predicted outcome.
+  report += `## 9. Multiple Futures: Scenario Planning\n\n`;
+  const scenarioThemeCounts = { EXPANSION: 0, RISK: 0, FINANCIAL: 0 };
+  newsArticles.forEach(a => {
+    const type = classifyNews(a.title, a.description);
+    if (scenarioThemeCounts[type] !== undefined) scenarioThemeCounts[type]++;
+  });
+  const scenarios = buildFutureScenarios(scenarioThemeCounts, newsArticles.length);
+  report += `| Scenario | Signal-Weighted Likelihood | Trigger Conditions | Account Strategy Implication |\n`;
+  report += `|----------|----------------------------|---------------------|-------------------------------|\n`;
+  scenarios.forEach(s => {
+    report += `| **${s.name}** | ${s.likelihood} | ${s.trigger} | ${s.implication} |\n`;
+  });
+  report += `\n| Why This Matters |\n|---|\n| *Don't anchor the account plan to only the "Base Case." Prepare talking points for the Upside and Disruption scenarios now — whichever materializes, you'll already have the right message ready instead of reacting cold.* |\n\n`;
 
   // ===== ACTION PLAN =====
   report += `## Action Plan\n\n`;
@@ -444,7 +695,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `| | |\n|---|---|\n`;
   report += `| **Report** | ${ctx.label} |\n`;
   report += `| **Generated** | ${date} |\n`;
-  report += `| **Rubric Coverage** | Trends ✓ Use Cases ✓ Committee ✓ Stories ✓ Differentiation ✓ |\n`;
+  report += `| **Rubric Coverage** | Trends ✓ Use Cases ✓ Committee ✓ Stories ✓ Differentiation ✓ Adjacent Patterns ✓ Emerging Tech ✓ Macro Signals ✓ Scenarios ✓ |\n`;
 
   return report;
 }

@@ -1100,11 +1100,21 @@ function getLogoUrl(name) {
   return LOGO_MAP[name] || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=f1f5f9&color=6366f1&size=128&bold=true`;
 }
 
+// Derived once from LOGO_MAP so every company automatically gets a Google
+// favicon fallback without hand-maintaining a second, easily-out-of-sync list.
+const LOGO_DOMAIN_MAP = Object.fromEntries(
+  Object.entries(LOGO_MAP)
+    .map(([name, url]) => {
+      const match = url.match(/img\.logo\.dev\/([^?]+)/);
+      return match ? [name, match[1]] : null;
+    })
+    .filter(Boolean)
+);
+
 window.handleLogoError = function(img, name) {
   // Fallback chain: logo.dev -> Google favicons -> UI Avatars
   if (img.src.includes('logo.dev')) {
-    const domains = { 'HSBC': 'hsbc.com', 'Grab': 'grab.com', 'Vodafone': 'vodafone.com', 'Cathay Pacific': 'cathaypacific.com', 'Alibaba': 'alibaba.com', 'Standard Chartered': 'sc.com', 'Temu': 'temu.com', 'Ctrip': 'trip.com', 'Didi': 'didiglobal.com', 'DBS': 'dbs.com', 'Tencent': 'tencent.com', 'Bank of China': 'boc.cn', 'ByteDance': 'bytedance.com', 'Gojek': 'gojek.com', 'Citigroup': 'citigroup.com', 'Binance': 'binance.com', 'ShopBack': 'shopback.com', 'Aeon Credit': 'aeoncredit.com.my', 'CATL (\u5b81\u5fb7\u65f6\u4ee3)': 'catl.com', 'SpaceX': 'spacex.com', 'SF Express (\u987a\u4e30)': 'sf-express.com', 'Helios Energy': 'heliosenergy.com', 'Tesla': 'tesla.com', 'OpenAI': 'openai.com', 'Anthropic': 'anthropic.com' };
-    const domain = domains[name];
+    const domain = LOGO_DOMAIN_MAP[name];
     if (domain) { img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`; return; }
   }
   if (!img.src.includes('ui-avatars')) {

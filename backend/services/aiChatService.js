@@ -351,7 +351,7 @@ function buildDeepThinkAnswer(query, news, mentionedCompany) {
  */
 function generateChatAnswer(query, context, history) {
   if (!query) {
-    return 'Hi! I\'m your AlphaFeed assistant. Ask me about any of the 40+ companies I track, market trends, or engagement opportunities.';
+    return 'Hi! I\'m your AlphaFeed assistant. Ask me about any of the 50+ companies I track, market trends, or engagement opportunities.';
   }
 
   const q = query.toLowerCase();

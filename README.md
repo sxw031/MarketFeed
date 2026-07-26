@@ -1,6 +1,6 @@
 # MarketFeed | Enterprise Strategic Intelligence Platform
 
-A professional, AI-powered news aggregation and strategic intelligence platform designed for enterprise account managers and customer success teams. Tracks 18 key global companies across finance, technology, and e-commerce sectors.
+A professional, AI-powered news aggregation and strategic intelligence platform designed for enterprise account managers and customer success teams. Tracks 50+ key global companies across finance, technology, AI, e-commerce, social media, and more.
 
 ## Key Features
 
@@ -24,14 +24,22 @@ A professional, AI-powered news aggregation and strategic intelligence platform 
 - **Responsive Design** — Optimized for desktop, tablet, and mobile.
 - **Yearly Summaries** — Historical event summaries for 2023–2026.
 
-## Tracked Companies (18)
+## Tracked Companies (53)
 
 | Sector | Companies |
 |--------|-----------|
-| **Finance** | HSBC, DBS, Bank of China, Citigroup, Standard Chartered, Binance, Aeon Credit |
-| **Technology** | Grab, Didi, Gojek, Tencent, ByteDance |
-| **E-commerce** | Alibaba, Temu, ShopBack |
-| **Travel & Telecom** | Cathay Pacific, Ctrip, Vodafone |
+| **Finance** | HSBC, DBS, Bank of China, Citigroup, Standard Chartered, JPMorgan Chase, Aeon Credit, Bank of America |
+| **Crypto & Fintech** | Binance, Coinbase, Stripe, PayPal |
+| **Big Tech** | Apple, Alphabet (Google), Microsoft, Amazon, Meta, Nvidia, Samsung, TSMC, Adobe |
+| **AI & Data** | OpenAI, Anthropic, Databricks, ByteDance, Palantir, DeepSeek, Moonshot AI |
+| **E-commerce & Retail** | Alibaba, Temu, Shein, ShopBack, Walmart, Nike |
+| **Mobility & Travel** | Grab, Didi, Gojek, Cathay Pacific, Ctrip |
+| **Telecom** | Vodafone, Singtel, StarHub |
+| **Entertainment** | Netflix, Tencent, Disney |
+| **Social Media** | Reddit, X (Twitter), RedNote (Xiaohongshu) |
+| **Auto & Energy** | Tesla, Helios Energy, CATL (宁德时代) |
+| **Aerospace** | SpaceX |
+| **Logistics** | SF Express (顺丰) |
 
 ## Tech Stack
 

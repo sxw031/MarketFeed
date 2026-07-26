@@ -1,6 +1,14 @@
 const express = require('express');
 const { generateHeuristicReport } = require('../services/strategyEngine');
 const { generateChatAnswer } = require('../services/aiChatService');
+const { RuntimeCache } = require('../services/runtimeCache');
+
+// Weekly/monthly/quarterly reports re-scan up to 500 DB rows and rebuild the
+// full multi-section report; caching briefly avoids redoing that work when a
+// user reopens the same report window within a couple of minutes (fast to
+// load/respond) while still refreshing often enough to stay accurate.
+const REPORT_CACHE_TTL_MS = 2 * 60 * 1000;
+const reportCache = new RuntimeCache({ maxEntries: 20, defaultTtlMs: REPORT_CACHE_TTL_MS });
 
 function createAiRouter({ getNews }) {
   const router = express.Router();
@@ -10,13 +18,25 @@ function createAiRouter({ getNews }) {
       const { news, period = 'daily' } = req.body;
       let articles = news || [];
 
-      if (['weekly', 'monthly', 'quarterly'].includes(period)) {
+      const isDbBackedPeriod = ['weekly', 'monthly', 'quarterly'].includes(period);
+      if (isDbBackedPeriod) {
+        const cacheKey = `report:${period}`;
+        const cached = reportCache.get(cacheKey);
+        if (cached) {
+          return res.json({ success: true, ...cached, cached: true });
+        }
+
         const daysMap = { weekly: 7, monthly: 30, quarterly: 90 };
         const days = daysMap[period] || 1;
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
         const dbArticles = await getNews({ startDate: startDate.toISOString(), limit: 500 });
         if (dbArticles && dbArticles.length > 0) articles = dbArticles;
+
+        const report = generateHeuristicReport(articles, period);
+        const payload = { report, period, articleCount: articles.length };
+        reportCache.set(cacheKey, payload);
+        return res.json({ success: true, ...payload });
       }
 
       const report = generateHeuristicReport(articles, period);

@@ -1,7 +1,7 @@
 {
   "name": "marketfeed",
   "version": "3.10.1",
-  "description": "Strategic news aggregator for 18 major companies - MarketFeed",
+  "description": "Strategic news aggregator for 50+ major companies - MarketFeed",
   "main": "backend/server.js",
   "scripts": {
     "build": "node -e \"console.log('No build step required')\"",
