@@ -1631,7 +1631,7 @@ function sanitizeUrl(url) {
           <div class="ipo-meta-item"><i class="fas fa-industry"></i> ${esc(ipo.industry)}</div>
           <div class="ipo-meta-item"><i class="fas fa-exchange-alt"></i> ${esc(ipo.exchange)}</div>
           <div class="ipo-meta-item"><i class="fas fa-dollar-sign"></i> ${esc(ipo.valuation)}</div>
-          <div class="ipo-meta-item"><i class="fas fa-calendar"></i> ${expectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+          <div class="ipo-meta-item"><i class="fas fa-calendar"></i> ${expectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</div>
           <div class="ipo-meta-item ipo-countdown"><i class="fas fa-clock"></i> ${timeLabel}</div>
         </div>
       </div>`;
