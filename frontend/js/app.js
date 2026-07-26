@@ -221,7 +221,7 @@ async function loadNews(silent = false, options = {}) {
       totalNewsPages = 1;
       resultsCapped = false;
       updateResultsSummary(0);
-      if (!silent) showEmptyState(true);
+      if (!silent) showEmptyState(true, e.message || 'Unable to reach the server.');
     }
   } finally {
     if (requestId === activeNewsRequestId && !silent) showLoading(false);
@@ -736,6 +736,7 @@ function setupEventListeners() {
 
   // Sync latest news
   bindEventById('refreshBtn', 'click', () => triggerAggregation());
+  bindEventById('emptyStateRetryBtn', 'click', () => loadNews(false, { resetPage: true }));
 
   // Filters - auto apply on change
   bindEventById('categoryFilter', 'change', () => loadNews(false, { resetPage: true }));
@@ -1374,22 +1375,31 @@ function hasActiveFilters() {
   return Boolean(category || source || search || (selectedCompanies && selectedCompanies.length > 0) || (activeTimeRangeKey && activeTimeRangeKey !== '24h'));
 }
 
-function showEmptyState(show) {
+function showEmptyState(show, errorMessage) {
   const emptyState = document.getElementById('emptyState');
   emptyState.style.display = show ? 'block' : 'none';
   if (show) {
     document.getElementById('newsList').innerHTML = '';
+    const icon = document.getElementById('emptyStateIcon');
     const title = document.getElementById('emptyStateTitle');
     const message = document.getElementById('emptyStateMessage');
+    const retryBtn = document.getElementById('emptyStateRetryBtn');
     if (title && message) {
-      if (hasActiveFilters()) {
+      if (errorMessage) {
+        if (icon) icon.textContent = '⚠️';
+        title.textContent = 'Could not load the feed';
+        message.textContent = `Error: ${errorMessage}`;
+      } else if (hasActiveFilters()) {
+        if (icon) icon.textContent = '📡';
         title.textContent = 'No matching articles';
         message.textContent = 'No news matches your current filters. Try widening the time range or clearing some filters.';
       } else {
+        if (icon) icon.textContent = '📡';
         title.textContent = 'Initializing Feed...';
         message.textContent = "We're currently aggregating the latest news for your selected companies.";
       }
     }
+    if (retryBtn) retryBtn.style.display = errorMessage ? 'inline-flex' : 'none';
   }
 }
 

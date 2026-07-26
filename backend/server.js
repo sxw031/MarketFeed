@@ -48,12 +48,24 @@ const allowedOrigins = new Set([
 ].filter(Boolean));
 
 const corsOptionsDelegate = (req, callback) => {
+  // Browsers attach an Origin header to same-origin "unsafe" requests too
+  // (e.g. POST /api/news/aggregate from the "Sync Latest" button), not just
+  // cross-origin ones. If the static allowlist happens to omit the exact
+  // host the app is actually being served from (custom domain, renamed
+  // Render service, etc.) those same-origin calls would otherwise be
+  // rejected with "Not allowed by CORS" even though there is no real
+  // cross-origin request happening. req.protocol/req.get('host') reflect
+  // the Host header the browser used to reach this server (trusted via the
+  // single hop set with `app.set('trust proxy', 1)` above), so echoing it
+  // back only ever allows the origin the request itself came in on.
+  const requestOrigin = normalizeOrigin(`${req.protocol}://${req.get('host')}`);
   callback(null, {
     origin(originToCheck, done) {
       const normalizedOrigin = normalizeOrigin(originToCheck);
       // Allow non-browser requests (no Origin header, e.g. curl/server-to-server)
       if (!normalizedOrigin) return done(null, true);
       if (allowedOrigins.has(normalizedOrigin)) return done(null, true);
+      if (requestOrigin && normalizedOrigin === requestOrigin) return done(null, true);
       done(new Error('Not allowed by CORS'));
     }
   });
