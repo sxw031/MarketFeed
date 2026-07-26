@@ -11,26 +11,48 @@ function sampleArticles() {
   ];
 }
 
-const EXPECTED_SECTIONS = [
+const EXPECTED_DAILY_SECTIONS = [
   '# Daily Strategic Briefing',
+  '## Top Signals Today',
+  '## Use Case Snapshot',
+  '## Priority Actions'
+];
+
+const EXPECTED_FULL_SECTIONS = [
   '## 1. Industry Trends & Urgency',
   '## 2. Communication Use Case Mapping',
   '## 3. Buying Committee Map',
-  '## 4. Success Story to Tell',
-  '## 5. Competitive Edge',
-  '## 6. Adjacent Sector Patterns',
-  '## 7. Emerging Technology Signals',
-  '## 8. Macro Signals & Assumptions to Challenge',
-  '## 9. Multiple Futures: Scenario Planning',
-  '## Action Plan'
+  '## 4. Competitive Edge',
+  '## 5. Adjacent Sector Patterns',
+  '## 6. Emerging Technology Signals',
+  '## 7. Macro Signals & Assumptions to Challenge',
+  '## 8. Multiple Futures: Scenario Planning',
+  '## Action Plan',
+  '## Trend Analysis',
+  '## Summary'
 ];
 
-test('generateHeuristicReport returns a report with every rubric section present', () => {
+test('generateHeuristicReport returns a concise daily digest without the full rubric sections', () => {
   const report = generateHeuristicReport(sampleArticles(), 'daily');
   assert.equal(typeof report, 'string');
-  for (const section of EXPECTED_SECTIONS) {
+  for (const section of EXPECTED_DAILY_SECTIONS) {
+    assert.ok(report.includes(section), `expected daily report to contain "${section}"`);
+  }
+  // The daily digest should stay short — it must not include the full
+  // weekly/monthly rubric sections or the now-removed Success Story section.
+  assert.ok(!report.includes('## 1. Industry Trends & Urgency'));
+  assert.ok(!report.includes('Success Story'));
+  assert.ok(!report.includes('## Summary'));
+  assert.ok(!report.includes('## Trend Analysis'));
+});
+
+test('generateHeuristicReport returns every full-rubric section for weekly/monthly/quarterly reports', () => {
+  const report = generateHeuristicReport(sampleArticles(), 'weekly');
+  assert.equal(typeof report, 'string');
+  for (const section of EXPECTED_FULL_SECTIONS) {
     assert.ok(report.includes(section), `expected report to contain "${section}"`);
   }
+  assert.ok(!report.includes('Success Story'));
 });
 
 test('generateHeuristicReport supports weekly/monthly/quarterly period labels', () => {
@@ -50,13 +72,19 @@ test('generateHeuristicReport works for a company without a bespoke INDUSTRY_CON
     { id: 4, company: 'Netflix', title: 'Netflix expands enterprise messaging tools', description: 'Netflix rolls out new notifications', publishedAt: now, category: 'Entertainment' }
   ];
   const report = generateHeuristicReport(articles, 'daily');
-  assert.ok(report.includes('## 4. Success Story to Tell'));
+  assert.ok(report.includes('## Top Signals Today'));
   assert.match(report, /Netflix/);
 });
 
-test('generateHeuristicReport flags illustrative (unverified) success stories for credibility', () => {
-  const report = generateHeuristicReport(sampleArticles(), 'daily');
-  assert.match(report, /Illustrative benchmark pending real anonymized case study/);
+test('generateHeuristicReport Trend Analysis ranks only the top 5 accounts', () => {
+  const now = new Date().toISOString();
+  const articles = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((letter, i) => ({
+    id: i, company: `Company ${letter}`, title: `${letter} messaging update`, description: 'notification platform', publishedAt: now, category: 'Technology'
+  }));
+  const report = generateHeuristicReport(articles, 'weekly');
+  const trendSection = report.split('## Trend Analysis')[1].split('## Summary')[0];
+  const rankedRows = trendSection.split('\n').filter(line => /^\| \d+ \|/.test(line));
+  assert.equal(rankedRows.length, 5);
 });
 
 test('generateYearlySummary returns highlights for a known year and empty array otherwise', () => {

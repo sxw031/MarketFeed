@@ -18,7 +18,6 @@
  */
 
 const { COMPANIES } = require('../config/sources');
-const { getSuccessStories } = require('../config/successStories');
 
 // --- Yearly Summary Data ---
 const YEARLY_EVENTS = {
@@ -392,7 +391,7 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
     return competitorKeywords.some(kw => text.includes(kw)) || relevanceKeywords.filter(kw => text.includes(kw)).length >= 3;
   });
 
-  // ===== BUILD REPORT =====
+  // ===== HEADER (shared by every period) =====
   let report = `# ${ctx.label}\n\n`;
   report += `| | |\n|---|---|\n`;
   report += `| **Date** | ${date} |\n`;
@@ -401,9 +400,105 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `| **Actionable** | ${actionableSignals.length} signals (${Math.round(actionableSignals.length / newsArticles.length * 100)}%) |\n`;
   report += `| **Priority Accounts** | ${highUrgency.length > 0 ? highUrgency.map(([c]) => c).join(', ') : 'None this period'} |\n\n`;
 
+  const shared = { newsArticles, grouped, companies, actionableSignals, useCaseMatches, topCompanies, highUrgency };
+
+  // Daily briefings get a short, flexible-format digest instead of the full
+  // multi-section deep dive — same visual style (tables, bold, conversation
+  // prompts) but scoped to only what's actionable *today*, without the
+  // sections that need a wider time range to be meaningful (adjacent-sector
+  // patterns, emerging tech, macro signals, scenario planning, etc.).
+  if (period === 'daily') {
+    report += buildDailyDigest(shared);
+    report += `\n---\n\n`;
+    report += `| | |\n|---|---|\n`;
+    report += `| **Report** | ${ctx.label} |\n`;
+    report += `| **Generated** | ${date} |\n`;
+    return report;
+  }
+
+  report += buildFullReportBody(shared);
+  report += buildTrendAnalysis(shared);
+  report += buildSummary({ ...shared, ctx });
+
+  // ===== FOOTER =====
+  report += `\n---\n\n`;
+  report += `| | |\n|---|---|\n`;
+  report += `| **Report** | ${ctx.label} |\n`;
+  report += `| **Generated** | ${date} |\n`;
+  report += `| **Rubric Coverage** | Trends ✓ Use Cases ✓ Committee ✓ Differentiation ✓ Adjacent Patterns ✓ Emerging Tech ✓ Macro Signals ✓ Scenarios ✓ Summary ✓ |\n`;
+
+  return report;
+}
+
+/**
+ * Short, flexible-format digest for the daily report. Keeps the same table
+ * style and key figures as the full report, but condenses everything that
+ * is genuinely actionable "today" into a couple of tight sections instead of
+ * the full nine-section rubric (which needs a wider time window to surface
+ * meaningful cross-sector/macro/scenario signals).
+ */
+function buildDailyDigest({ newsArticles, grouped, actionableSignals, useCaseMatches, highUrgency }) {
+  let out = '';
+
+  // ---- Top signals today ----
+  out += `## Top Signals Today\n\n`;
+  const topSignals = actionableSignals.length > 0 ? actionableSignals.slice(0, 5) : newsArticles.slice(0, 5);
+  const implications = {
+    EXPANSION: 'New market = 3-5x notification volume growth',
+    TECHNOLOGY: 'Platform investment = 40% higher messaging spend',
+    FINANCIAL: 'Revenue growth = 2.5x more likely to approve vendors',
+    PARTNERSHIP: 'Partner expansion = 60% increase in API calls',
+    RISK: 'Service issues = 3x more receptive to failover solutions',
+    GENERAL: 'Evolving needs = engagement window open'
+  };
+  out += `| # | Company | Signal | Type | Business Implication |\n`;
+  out += `|---|---------|--------|------|---------------------|\n`;
+  topSignals.forEach((article, i) => {
+    const type = classifyNews(article.title, article.description);
+    out += `| ${i + 1} | **${article.company}** | ${article.title.substring(0, 55)}${article.title.length > 55 ? '...' : ''} | ${type} | ${implications[type] || implications.GENERAL} |\n`;
+  });
+  out += `\n| Conversation Opener |\n|---|\n| *"I noticed [signal] about your company. How is this affecting your communication strategy?"* |\n\n`;
+
+  // ---- Use case snapshot ----
+  out += `## Use Case Snapshot\n\n`;
+  out += `| Pillar | Signals | Key Accounts | Business Value |\n`;
+  out += `|--------|---------|--------------|----------------|\n`;
+  for (const [key, uc] of Object.entries(USE_CASES)) {
+    const matched = useCaseMatches[key];
+    const cos = [...new Set(matched.map(a => a.company))].slice(0, 3);
+    out += `| ${uc.icon} **${uc.name}** | ${matched.length} | ${cos.length > 0 ? cos.join(', ') : '—'} | ${uc.value} |\n`;
+  }
+  out += `\n`;
+
+  // ---- Priority actions ----
+  out += `## Priority Actions\n\n`;
+  out += `| Priority | Account | Action | Deadline |\n`;
+  out += `|----------|---------|--------|----------|\n`;
+  if (highUrgency.length > 0) {
+    highUrgency.slice(0, 3).forEach(([company, articles]) => {
+      out += `| 🔴 **HIGH** | ${company} | Reach out re: "${articles[0].title.substring(0, 45)}..." | Within 24h |\n`;
+    });
+  }
+  const medUrgency = Object.entries(grouped).filter(([c]) => !highUrgency.some(([h]) => h === c)).slice(0, 3);
+  medUrgency.forEach(([company]) => {
+    out += `| 🟡 Medium | ${company} | Schedule touchpoint, reference recent signal | This week |\n`;
+  });
+  if (highUrgency.length === 0 && medUrgency.length === 0) {
+    out += `| 🟢 Normal | All accounts | Relationship building, share insights with champions | This week |\n`;
+  }
+  out += `\n`;
+
+  return out;
+}
+
+/** Full nine-... now eight-section rubric body used for weekly/monthly/quarterly reports. */
+function buildFullReportBody(shared) {
+  const { newsArticles, grouped, companies, useCaseMatches, topCompanies, highUrgency } = shared;
+  let report = '';
+
   // ===== SECTION 1: INDUSTRY TRENDS =====
   report += `## 1. Industry Trends & Urgency\n\n`;
-  const topSignals = actionableSignals.length > 0 ? actionableSignals.slice(0, 6) : newsArticles.slice(0, 6);
+  const topSignals = shared.actionableSignals.length > 0 ? shared.actionableSignals.slice(0, 6) : newsArticles.slice(0, 6);
   report += `| # | Company | Signal | Type | Business Implication |\n`;
   report += `|---|---------|--------|------|---------------------|\n`;
   const implications = {
@@ -459,51 +554,8 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   });
   report += `| Committee Question |\n|---|\n| *"Who else needs to be involved in a communication infrastructure decision? What keeps them up at night?"* |\n\n`;
 
-  // ===== SECTION 4: SUCCESS STORY =====
-  // Tied to the account's actual detected signal (not a generic placeholder)
-  // so the story reads as a relevant, specific talking point rather than
-  // boilerplate. Falls back gracefully to a category-derived vertical for
-  // any tracked company that doesn't have a bespoke INDUSTRY_CONTEXT entry.
-  report += `## 4. Success Story to Tell\n\n`;
-  const storyCompany = topCompanies[0]?.[0] || companies[0];
-  const storyArticles = grouped[storyCompany] || [];
-  const storyCtx = getIndustryContext(storyCompany);
-  const successStories = getSuccessStories();
-  const story = successStories[storyCtx.vertical] || successStories['Banking & Financial Services'];
-  const storySignal = storyArticles[0];
-  const storySignalTitle = storySignal ? storySignal.title.substring(0, 70) : null;
-
-  report += `| | For your conversation with **${storyCompany}** (${storyCtx.vertical}) |\n|---|---|\n`;
-  if (storySignalTitle) {
-    report += `| **Their signal** | "${storySignalTitle}${storySignal.title.length > 70 ? '...' : ''}" |\n`;
-  }
-  report += `| **Comparable customer** | ${story.customer} |\n`;
-  report += `| **Before** | ${story.before} |\n`;
-  report += `| **After** | ${story.after} |\n`;
-  report += `| **Results** | ${story.impact} |\n`;
-  report += `| **Timeline** | ${story.timeframe} |\n`;
-  report += `| **Why it's relevant to them** | ${storyCompany}'s priority is ${storyCtx.priority.toLowerCase()} — the same gap this comparable customer closed |\n`;
-  if (!story.verified) {
-    report += `| **Data note** | Illustrative benchmark pending real anonymized case study — verify figures before quoting externally |\n`;
-  }
-  const bridgeSignal = storySignalTitle ? `your recent news on "${storySignalTitle}${storySignal.title.length > 70 ? '...' : ''}"` : `your team's focus on ${storyCtx.priority.toLowerCase()}`;
-  report += `\n| Story Bridge |\n|---|\n| *"Does this sound familiar? Given ${bridgeSignal}, are you facing similar challenges around ${storyCtx.priority.toLowerCase()}?"* |\n\n`;
-
-  // Second story if a different vertical is also prominent this period
-  if (topCompanies.length > 1) {
-    const co2 = topCompanies[1][0];
-    const ctx2 = getIndustryContext(co2);
-    const story2 = successStories[ctx2.vertical] || successStories['E-commerce & Cloud'];
-    if (ctx2.vertical !== storyCtx.vertical) {
-      report += `| | For **${co2}** (${ctx2.vertical}) |\n|---|---|\n`;
-      report += `| **Comparable customer** | ${story2.customer} |\n`;
-      report += `| **Key result** | ${story2.impact.split(',')[0]} |\n`;
-      report += `| **Timeline** | ${story2.timeframe} |\n\n`;
-    }
-  }
-
-  // ===== SECTION 5: COMPETITIVE EDGE =====
-  report += `## 5. Competitive Edge\n\n`;
+  // ===== SECTION 4: COMPETITIVE EDGE =====
+  report += `## 4. Competitive Edge\n\n`;
   report += `| Differentiator | What It Means for Your Accounts |\n`;
   report += `|----------------|----------------------------------|\n`;
 
@@ -526,10 +578,10 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   diffRows.slice(0, 4).forEach(row => { report += row + '\n'; });
   report += `\n| Closing Question |\n|---|\n| *"Based on what we discussed, do you see how this approach would address [their challenge] differently than what you have today?"* |\n\n`;
 
-  // ===== SECTION 6: ADJACENT SECTOR PATTERNS =====
+  // ===== SECTION 5: ADJACENT SECTOR PATTERNS =====
   // Only surfaces a theme if it shows up across 2+ distinct company
   // categories — a genuine cross-industry pattern, not a single company's news.
-  report += `## 6. Adjacent Sector Patterns\n\n`;
+  report += `## 5. Adjacent Sector Patterns\n\n`;
   const adjacentHits = scanKeywordThemes(newsArticles, ADJACENT_PATTERN_THEMES, 2);
   const crossSectorPatterns = adjacentHits.filter(([, matches]) => {
     const categories = new Set(matches.map(a => COMPANY_CATEGORY[a.company]).filter(Boolean));
@@ -548,8 +600,8 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   }
   report += `\n| Analyst Note |\n|---|\n| *A pattern appearing in unrelated sectors (e.g. finance AND retail AND AI) is a stronger signal than the same pattern repeating within one industry — it points to a macro driver, not a sector fad.* |\n\n`;
 
-  // ===== SECTION 7: EMERGING TECHNOLOGY SIGNALS =====
-  report += `## 7. Emerging Technology Signals\n\n`;
+  // ===== SECTION 6: EMERGING TECHNOLOGY SIGNALS =====
+  report += `## 6. Emerging Technology Signals\n\n`;
   const emergingTechHits = scanKeywordThemes(newsArticles, EMERGING_TECH_KEYWORDS, 1);
   if (emergingTechHits.length > 0) {
     report += `| Technology | Signals | Leading Accounts | CPaaS Implication |\n`;
@@ -571,8 +623,8 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   }
   report += `\n`;
 
-  // ===== SECTION 8: MACRO SIGNALS & ASSUMPTIONS TO CHALLENGE =====
-  report += `## 8. Macro Signals & Assumptions to Challenge\n\n`;
+  // ===== SECTION 7: MACRO SIGNALS & ASSUMPTIONS TO CHALLENGE =====
+  report += `## 7. Macro Signals & Assumptions to Challenge\n\n`;
   const macroHits = Object.entries(MACRO_SIGNAL_THEMES)
     .map(([theme, cfg]) => {
       const matches = newsArticles.filter(a => {
@@ -595,10 +647,10 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   }
   report += `\n| Reframe Question |\n|---|\n| *"Everyone assumes [conventional wisdom] right now — but what if the opposite is true for your business? What would that mean for how we should be working together?"* |\n\n`;
 
-  // ===== SECTION 9: MULTIPLE FUTURES (SCENARIO PLANNING) =====
+  // ===== SECTION 8: MULTIPLE FUTURES (SCENARIO PLANNING) =====
   // Deliberately presents 3 branches instead of one linear forecast so the
   // account team plans for optionality rather than a single predicted outcome.
-  report += `## 9. Multiple Futures: Scenario Planning\n\n`;
+  report += `## 8. Multiple Futures: Scenario Planning\n\n`;
   const scenarioThemeCounts = { EXPANSION: 0, RISK: 0, FINANCIAL: 0 };
   newsArticles.forEach(a => {
     const type = classifyNews(a.title, a.description);
@@ -633,46 +685,72 @@ function generateHeuristicReport(newsArticles, period = 'daily') {
   report += `\n| Ongoing Actions |\n|---|\n`;
   report += `| Update QBR decks for accounts with 3+ signals |\n`;
   report += `| Share report insights with AE partners |\n`;
-  report += `| Log key signals in CRM for next touchpoint |\n`;
+  report += `| Log key signals in CRM for next touchpoint |\n\n`;
 
-  // ===== TREND ANALYSIS (weekly+) =====
-  if (period !== 'daily') {
-    const companyCounts = Object.entries(grouped).sort((a, b) => b[1].length - a[1].length);
-    report += `\n## Trend Analysis\n\n`;
-    report += `| Rank | Account | Signals | Activity Level |\n`;
-    report += `|------|---------|---------|----------------|\n`;
-    companyCounts.slice(0, 10).forEach(([co, articles], i) => {
-      const level = articles.length >= 10 ? '🔥 Very High' : articles.length >= 5 ? '⚡ High' : articles.length >= 3 ? '📊 Moderate' : '📌 Low';
-      report += `| ${i + 1} | **${co}** | ${articles.length} | ${level} |\n`;
-    });
+  return report;
+}
 
-    // Theme distribution
-    const themes = { Messaging: 0, Digital: 0, Expansion: 0, Financial: 0, Partnership: 0, Risk: 0 };
-    newsArticles.forEach(a => {
-      const text = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
-      if (text.match(/messaging|sms|rcs|notification|communication/)) themes.Messaging++;
-      if (text.match(/digital|platform|api|cloud|ai|automation/)) themes.Digital++;
-      if (text.match(/expand|launch|new market|growth|scale/)) themes.Expansion++;
-      if (text.match(/revenue|profit|earnings|funding|ipo/)) themes.Financial++;
-      if (text.match(/partner|collaboration|alliance|deal/)) themes.Partnership++;
-      if (text.match(/layoff|decline|loss|breach|fine|regulatory/)) themes.Risk++;
-    });
+/** Ranks the top 5 most active accounts and the theme mix for the period. Weekly/monthly/quarterly only. */
+function buildTrendAnalysis({ grouped, newsArticles }) {
+  const companyCounts = Object.entries(grouped).sort((a, b) => b[1].length - a[1].length);
+  let report = `\n## Trend Analysis\n\n`;
+  report += `| Rank | Account | Signals | Activity Level |\n`;
+  report += `|------|---------|---------|----------------|\n`;
+  companyCounts.slice(0, 5).forEach(([co, articles], i) => {
+    const level = articles.length >= 10 ? '🔥 Very High' : articles.length >= 5 ? '⚡ High' : articles.length >= 3 ? '📊 Moderate' : '📌 Low';
+    report += `| ${i + 1} | **${co}** | ${articles.length} | ${level} |\n`;
+  });
 
-    report += `\n| Theme | Signals | Share | Trend |\n`;
-    report += `|-------|---------|-------|-------|\n`;
-    Object.entries(themes).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).forEach(([theme, count]) => {
-      const pct = Math.round(count / newsArticles.length * 100);
-      const bar = '█'.repeat(Math.min(Math.round(pct / 5), 10));
-      report += `| **${theme}** | ${count} | ${pct}% | ${bar} |\n`;
-    });
-  }
+  // Theme distribution
+  const themes = { Messaging: 0, Digital: 0, Expansion: 0, Financial: 0, Partnership: 0, Risk: 0 };
+  newsArticles.forEach(a => {
+    const text = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
+    if (text.match(/messaging|sms|rcs|notification|communication/)) themes.Messaging++;
+    if (text.match(/digital|platform|api|cloud|ai|automation/)) themes.Digital++;
+    if (text.match(/expand|launch|new market|growth|scale/)) themes.Expansion++;
+    if (text.match(/revenue|profit|earnings|funding|ipo/)) themes.Financial++;
+    if (text.match(/partner|collaboration|alliance|deal/)) themes.Partnership++;
+    if (text.match(/layoff|decline|loss|breach|fine|regulatory/)) themes.Risk++;
+  });
 
-  // ===== FOOTER =====
-  report += `\n---\n\n`;
+  report += `\n| Theme | Signals | Share | Trend |\n`;
+  report += `|-------|---------|-------|-------|\n`;
+  Object.entries(themes).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).forEach(([theme, count]) => {
+    const pct = Math.round(count / newsArticles.length * 100);
+    const bar = '█'.repeat(Math.min(Math.round(pct / 5), 10));
+    report += `| **${theme}** | ${count} | ${pct}% | ${bar} |\n`;
+  });
+  report += `\n`;
+
+  return report;
+}
+
+/**
+ * Closing "Summary" section for weekly/monthly/quarterly reports — a single
+ * at-a-glance recap of the period's headline numbers, top accounts, dominant
+ * theme, and the most likely near-term scenario, so a reader who only has
+ * time for one section still walks away with the key takeaways.
+ */
+function buildSummary({ ctx, newsArticles, companies, actionableSignals, topCompanies, highUrgency }) {
+  const topAccounts = topCompanies.slice(0, 3).map(([co, articles]) => `${co} (${articles.length})`).join(', ') || 'None';
+
+  const themeCounts = { EXPANSION: 0, RISK: 0, FINANCIAL: 0 };
+  newsArticles.forEach(a => {
+    const type = classifyNews(a.title, a.description);
+    if (themeCounts[type] !== undefined) themeCounts[type]++;
+  });
+  const scenarios = buildFutureScenarios(themeCounts, newsArticles.length);
+  const topScenario = [...scenarios].sort((a, b) => parseInt(b.likelihood) - parseInt(a.likelihood))[0];
+
+  const actionablePct = Math.round(actionableSignals.length / newsArticles.length * 100);
+
+  let report = `## Summary\n\n`;
   report += `| | |\n|---|---|\n`;
-  report += `| **Report** | ${ctx.label} |\n`;
-  report += `| **Generated** | ${date} |\n`;
-  report += `| **Rubric Coverage** | Trends ✓ Use Cases ✓ Committee ✓ Stories ✓ Differentiation ✓ Adjacent Patterns ✓ Emerging Tech ✓ Macro Signals ✓ Scenarios ✓ |\n`;
+  report += `| **Period Overview** | ${newsArticles.length} signals across ${companies.length} accounts (${ctx.timeframe.toLowerCase()}) — ${actionablePct}% directly actionable |\n`;
+  report += `| **Top Accounts to Watch** | ${topAccounts} |\n`;
+  report += `| **Priority Accounts** | ${highUrgency.length > 0 ? highUrgency.map(([c]) => c).join(', ') : 'None this period'} |\n`;
+  report += `| **Most Likely Near-Term Scenario** | ${topScenario.name.replace(/ —.*/, '')} (${topScenario.likelihood}) |\n`;
+  report += `| **Recommended Focus** | ${highUrgency.length > 0 ? 'Move on priority accounts within 24h, then reinforce use cases with the rest of the base' : 'Steady relationship building — reinforce use cases and log signals for the next touchpoint'} |\n\n`;
 
   return report;
 }
