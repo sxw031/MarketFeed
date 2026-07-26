@@ -2,6 +2,23 @@ const crypto = require('crypto');
 const { query } = require('../models/db');
 const { COMPANIES } = require('../config/sources');
 
+function escapeHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+// Only allow http/https URLs in generated email links/hrefs. Article URLs
+// originate from third-party RSS feeds and must not be rendered verbatim.
+function safeUrl(url) {
+  const trimmed = String(url || '').trim();
+  return /^https?:\/\//i.test(trimmed) ? escapeHtml(trimmed) : '#';
+}
+
 // Initialize subscription table
 async function initSubscriptionTable() {
   await query.run(`CREATE TABLE IF NOT EXISTS subscriptions (
@@ -215,7 +232,7 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
       <div class="section-title">🎧 3-Minute Audio Brief</div>
       <div class="podcast-card">
         <p style="margin: 0 0 0.75rem; font-size: 0.85rem; color: #475569;">Listen to your personalized market summary</p>
-        <a href="${podcastUrl}">▶ Play Podcast</a>
+        <a href="${safeUrl(podcastUrl)}">▶ Play Podcast</a>
       </div>
     </div>` : ''}
 
@@ -223,9 +240,9 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
       <div class="section-title">📰 Top 3 News Highlights</div>
       ${topNews.map((n, i) => `
       <div class="news-item">
-        <h3><a href="${n.url}">${i + 1}. ${n.title}</a></h3>
-        <p>${n.description || ''}</p>
-        <div class="news-meta"><span class="badge">${n.company}</span> ${n.source} · ${new Date(n.publishedAt).toLocaleDateString()}</div>
+        <h3><a href="${safeUrl(n.url)}">${i + 1}. ${escapeHtml(n.title)}</a></h3>
+        <p>${escapeHtml(n.description || '')}</p>
+        <div class="news-meta"><span class="badge">${escapeHtml(n.company)}</span> ${escapeHtml(n.source)} · ${new Date(n.publishedAt).toLocaleDateString()}</div>
       </div>`).join('')}
     </div>
 
@@ -233,14 +250,14 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
       <div class="section-title">💡 Suggested Actions</div>
       <div class="strategy-card">
         <ul style="padding-left: 1.2rem; margin: 0;">
-          ${strategy.map(s => `<li>${s}</li>`).join('')}
+          ${strategy.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
         </ul>
       </div>
     </div>
 
     <div class="footer">
       <p>You're receiving this because you subscribed to AlphaFeed ${freqLabel} Digest.</p>
-      <p><a href="{{UNSUBSCRIBE_URL}}?token=${unsubscribeToken}">Unsubscribe</a> · <a href="{{APP_URL}}">Open AlphaFeed</a></p>
+      <p><a href="{{UNSUBSCRIBE_URL}}?token=${encodeURIComponent(unsubscribeToken)}">Unsubscribe</a> · <a href="{{APP_URL}}">Open AlphaFeed</a></p>
     </div>
   </div>
 </body>

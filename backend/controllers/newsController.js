@@ -100,6 +100,14 @@ async function getArticlePreview(req, res) {
 }
 
 async function triggerAggregation(req, res) {
+  const configuredSecret = process.env.AGGREGATION_SECRET;
+  if (configuredSecret) {
+    const providedSecret = req.get('x-aggregation-secret') || req.query.secret;
+    if (providedSecret !== configuredSecret) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+  }
+
   if (aggregationState.inProgress) {
     return res.json({ success: true, message: 'Already in progress', status: aggregationState });
   }

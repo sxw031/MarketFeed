@@ -560,15 +560,15 @@ function createCard(article) {
   return `
     <div class="news-card ${isStrategic ? 'strategic' : ''}" data-article='${articleJson}'>
       <div class="news-card-image-container">
-        <img src="${logo}" alt="${article.company}" class="news-card-logo" loading="lazy" onerror="handleLogoError(this,'${article.company}')">
+        <img src="${logo}" alt="${esc(article.company)}" class="news-card-logo" loading="lazy" data-company="${esc(article.company)}" onerror="handleLogoError(this,this.dataset.company)">
       </div>
       <div class="news-card-content">
         <h3 class="news-card-title">${relevanceDot}${esc(article.title)}</h3>
         <p class="news-card-description">${esc(article.description || '')}</p>
         <div class="news-card-meta">
-          <span class="badge badge-company">${article.company}</span>
-          <span class="badge badge-source">${article.source || 'Web'}</span>
-          <span class="badge ${isStrategic ? 'badge-strategic' : 'badge-category'}">${article.category || 'General'}</span>
+          <span class="badge badge-company">${esc(article.company)}</span>
+          <span class="badge badge-source">${esc(article.source || 'Web')}</span>
+          <span class="badge ${isStrategic ? 'badge-strategic' : 'badge-category'}">${esc(article.category || 'General')}</span>
           <span class="news-card-date">${date}</span>
         </div>
       </div>
@@ -623,13 +623,13 @@ function renderArticleModalContent({ logo, article, quickSummary, articlePreview
 
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:1.5rem;background:var(--bg-secondary);padding:1.5rem;border-radius:12px;">
-      <img src="${logo}" alt="${article.company}" style="max-width:140px;height:70px;object-fit:contain;" onerror="handleLogoError(this,'${article.company}')">
+      <img src="${logo}" alt="${esc(article.company)}" style="max-width:140px;height:70px;object-fit:contain;" data-company="${esc(article.company)}" onerror="handleLogoError(this,this.dataset.company)">
     </div>
     <h2 style="font-size:1.4rem;margin-bottom:0.75rem;font-weight:800;line-height:1.3;">${esc(article.title)}</h2>
     <div class="news-card-meta" style="margin-bottom:1.25rem;">
-      <span class="badge badge-company">${article.company}</span>
-      <span class="badge badge-source">${article.source || 'Web'}</span>
-      <span class="badge badge-category">${article.category || 'General'}</span>
+      <span class="badge badge-company">${esc(article.company)}</span>
+      <span class="badge badge-source">${esc(article.source || 'Web')}</span>
+      <span class="badge badge-category">${esc(article.category || 'General')}</span>
       <span class="news-card-date">${formatRelativeTime(article.publishedAt)}</span>
     </div>
     <div style="margin-bottom:1rem;padding:1rem;border-radius:12px;background:var(--bg-secondary);">
@@ -641,7 +641,7 @@ function renderArticleModalContent({ logo, article, quickSummary, articlePreview
       <div>${previewParagraphs || '<p style="line-height:1.7;color:var(--text-main);">No article preview available.</p>'}</div>
     </div>
     <div style="display:flex;justify-content:center;">
-      <a href="${esc(article.url)}" target="_blank" rel="noopener" class="btn-source-link">
+      <a href="${sanitizeUrl(article.url)}" target="_blank" rel="noopener" class="btn-source-link">
         View Original Source <i class="fas fa-external-link-alt"></i>
       </a>
     </div>`;
@@ -689,9 +689,9 @@ function renderYearlySummary(companies, year) {
     html += `
       <div class="yearly-company-card">
         <div class="yearly-company-header">
-          <img src="${logo}" alt="${c.company}" class="yearly-logo" onerror="handleLogoError(this,'${c.company}')">
+          <img src="${logo}" alt="${esc(c.company)}" class="yearly-logo" data-company="${esc(c.company)}" onerror="handleLogoError(this,this.dataset.company)">
           <div>
-            <h3>${c.company}</h3>
+            <h3>${esc(c.company)}</h3>
             <span class="badge ${relevanceClass}">Relevance: ${c.relevance}</span>
           </div>
         </div>
@@ -1201,7 +1201,7 @@ function renderCompanyGrid() {
     const el = document.createElement('div');
     el.className = `company-item ${selectedCompanies.includes(c.name) ? 'selected' : ''}`;
     el.dataset.company = c.name;
-    el.innerHTML = `<img src="${getLogoUrl(c.name)}" alt="${c.name}" loading="lazy" onerror="handleLogoError(this,'${c.name}')"><span>${c.name}</span>`;
+    el.innerHTML = `<img src="${getLogoUrl(c.name)}" alt="${esc(c.name)}" loading="lazy" data-company="${esc(c.name)}" onerror="handleLogoError(this,this.dataset.company)"><span>${esc(c.name)}</span>`;
     el.addEventListener('click', () => {
       el.classList.toggle('selected');
       const isSelected = el.classList.contains('selected');
@@ -1611,16 +1611,16 @@ function sanitizeUrl(url) {
       <div class="ipo-card">
         <div class="ipo-card-header">
           <div class="ipo-company-info">
-            <h3>${ipo.company_name}</h3>
-            <span class="ipo-ticker">${ipo.ticker || 'TBD'}</span>
+            <h3>${esc(ipo.company_name)}</h3>
+            <span class="ipo-ticker">${esc(ipo.ticker || 'TBD')}</span>
           </div>
-          <span class="ipo-status-badge ${statusClass}">${ipo.status}</span>
+          <span class="ipo-status-badge ${statusClass}">${esc(ipo.status)}</span>
         </div>
-        <p class="ipo-description">${ipo.description || ''}</p>
+        <p class="ipo-description">${esc(ipo.description || '')}</p>
         <div class="ipo-meta">
-          <div class="ipo-meta-item"><i class="fas fa-industry"></i> ${ipo.industry}</div>
-          <div class="ipo-meta-item"><i class="fas fa-exchange-alt"></i> ${ipo.exchange}</div>
-          <div class="ipo-meta-item"><i class="fas fa-dollar-sign"></i> ${ipo.valuation}</div>
+          <div class="ipo-meta-item"><i class="fas fa-industry"></i> ${esc(ipo.industry)}</div>
+          <div class="ipo-meta-item"><i class="fas fa-exchange-alt"></i> ${esc(ipo.exchange)}</div>
+          <div class="ipo-meta-item"><i class="fas fa-dollar-sign"></i> ${esc(ipo.valuation)}</div>
           <div class="ipo-meta-item"><i class="fas fa-calendar"></i> ${expectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
           <div class="ipo-meta-item ipo-countdown"><i class="fas fa-clock"></i> ${timeLabel}</div>
         </div>

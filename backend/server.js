@@ -13,8 +13,17 @@ const { startBackgroundSync } = require('./services/backgroundSync');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS: allow the configured app origins plus the current request host so
-// preview/custom domains on the same deployment do not get blocked.
+// Trust the first hop reverse proxy (Render's edge) so req.ip / req.protocol
+// reflect the real client via X-Forwarded-For/X-Forwarded-Proto instead of the
+// proxy's own address. Without this, req.ip is the same for every client and
+// the rate limiter below would (mis)treat all users as a single client.
+app.set('trust proxy', 1);
+
+// CORS: allow the configured app origins plus APP_URL. We intentionally do NOT
+// derive trust from client-controllable forwarded headers (X-Forwarded-Host /
+// X-Forwarded-Proto) — a request can set those to any value, so trusting them
+// here would let any origin bypass the allowlist. Only the static allowlist
+// (CORS_ALLOWED_ORIGINS / APP_URL / defaults) is trusted.
 const DEFAULT_PROD_ORIGINS = ['https://marketfeed.onrender.com'];
 const DEFAULT_DEV_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 function normalizeOrigin(value) {
@@ -38,27 +47,13 @@ const allowedOrigins = new Set([
   normalizeOrigin(process.env.APP_URL)
 ].filter(Boolean));
 
-function requestOriginFor(req) {
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
-    .split(',')[0]
-    .trim();
-  if (!host) return null;
-  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || (isProduction ? 'https' : 'http'))
-    .split(',')[0]
-    .trim();
-  return `${proto}://${host}`;
-}
-
 const corsOptionsDelegate = (req, callback) => {
-  const origin = normalizeOrigin(req.header('Origin'));
-  const requestOrigin = requestOriginFor(req);
   callback(null, {
     origin(originToCheck, done) {
-      const normalizedOrigin = normalizeOrigin(originToCheck || origin);
+      const normalizedOrigin = normalizeOrigin(originToCheck);
       // Allow non-browser requests (no Origin header, e.g. curl/server-to-server)
       if (!normalizedOrigin) return done(null, true);
       if (allowedOrigins.has(normalizedOrigin)) return done(null, true);
-      if (requestOrigin && normalizedOrigin === requestOrigin) return done(null, true);
       done(new Error('Not allowed by CORS'));
     }
   });

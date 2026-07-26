@@ -18,7 +18,7 @@
     const response = await fetch(url, options);
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json() : null;
-    if (!response.ok || !data.success) {
+    if (!response.ok || !data?.success) {
       throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
     }
     return data;

@@ -1,4 +1,6 @@
 const axios = require('axios');
+const dns = require('dns').promises;
+const net = require('net');
 
 const MAX_TEXT_LENGTH = 4000;
 
@@ -89,12 +91,54 @@ function extractArticleParagraphs(html = '') {
   return normalizeParagraphs(text);
 }
 
+function isPrivateIp(ip) {
+  const type = net.isIP(ip);
+  if (type === 4) {
+    const parts = ip.split('.').map(Number);
+    const [a, b] = parts;
+    if (a === 127) return true; // loopback
+    if (a === 10) return true; // private
+    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata (169.254.169.254)
+    if (a === 172 && b >= 16 && b <= 31) return true; // private
+    if (a === 192 && b === 168) return true; // private
+    if (a === 0) return true; // "this network"
+    return false;
+  }
+  if (type === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === '::1') return true; // loopback
+    if (lower === '::') return true;
+    if (lower.startsWith('fe80:') || lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true; // link-local fe80::/10
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local fc00::/7
+    // IPv4-mapped (::ffff:a.b.c.d) — validate the embedded IPv4 address too
+    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return false;
+  }
+  return true; // unknown/unparseable — fail closed
+}
+
 function isPrivateHost(hostname = '') {
   const lower = hostname.toLowerCase();
-  if (lower === 'localhost' || lower === '::1') return true;
-  if (/^127\./.test(lower) || /^10\./.test(lower) || /^192\.168\./.test(lower)) return true;
-  const m = lower.match(/^172\.(\d+)\./);
-  return !!(m && Number(m[1]) >= 16 && Number(m[1]) <= 31);
+  if (lower === 'localhost') return true;
+  if (net.isIP(lower)) return isPrivateIp(lower);
+  return false;
+}
+
+// Resolve the hostname and verify none of the resolved IPs are private/internal.
+// This closes the gap where a public-looking hostname resolves (directly or via
+// DNS rebinding) to an internal address such as the cloud metadata endpoint.
+async function assertPublicHost(hostname) {
+  if (isPrivateHost(hostname)) throw new Error('Unsupported source URL');
+  let addresses;
+  try {
+    addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+  } catch (_) {
+    throw new Error('Unsupported source URL');
+  }
+  if (!addresses.length || addresses.some(a => isPrivateIp(a.address))) {
+    throw new Error('Unsupported source URL');
+  }
 }
 
 async function fetchArticlePreview(url, fallbackSummary = '') {
@@ -115,17 +159,41 @@ async function fetchArticlePreview(url, fallbackSummary = '') {
     };
   }
 
-  if (!['http:', 'https:'].includes(parsedUrl.protocol) || isPrivateHost(parsedUrl.hostname)) {
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
     throw new Error('Unsupported source URL');
   }
 
-  const response = await axios.get(parsedUrl.toString(), {
-    timeout: 8000,
-    maxContentLength: 2 * 1024 * 1024,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; MarketFeed/1.0; +https://github.com/sxw031/MarketFeed)'
+  // Manually follow redirects (rather than letting axios auto-follow) so every
+  // hop — including ones added by a malicious/compromised origin server after
+  // the initial DNS-rebinding-safe check — is re-validated against the private
+  // IP ranges before we connect to it.
+  const MAX_REDIRECTS = 5;
+  let currentUrl = parsedUrl;
+  let response;
+  for (let redirects = 0; ; redirects++) {
+    if (!['http:', 'https:'].includes(currentUrl.protocol)) {
+      throw new Error('Unsupported source URL');
     }
-  });
+    await assertPublicHost(currentUrl.hostname);
+
+    response = await axios.get(currentUrl.toString(), {
+      timeout: 8000,
+      maxContentLength: 2 * 1024 * 1024,
+      maxRedirects: 0,
+      validateStatus: status => (status >= 200 && status < 300) || (status >= 300 && status < 400),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; MarketFeed/1.0; +https://github.com/sxw031/MarketFeed)'
+      }
+    });
+
+    const location = response.headers?.location;
+    if (response.status >= 300 && response.status < 400 && location) {
+      if (redirects >= MAX_REDIRECTS) throw new Error('Too many redirects');
+      currentUrl = new URL(location, currentUrl);
+      continue;
+    }
+    break;
+  }
 
   const html = typeof response.data === 'string' ? response.data : '';
   const metaDescription = extractMetaDescription(html);
@@ -138,7 +206,7 @@ async function fetchArticlePreview(url, fallbackSummary = '') {
   return {
     summary,
     preview: preview.substring(0, MAX_TEXT_LENGTH),
-    sourceUrl: parsedUrl.toString()
+    sourceUrl: currentUrl.toString()
   };
 }
 
