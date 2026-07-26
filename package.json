@@ -1,6 +1,6 @@
 {
   "name": "marketfeed",
-  "version": "3.10.0",
+  "version": "3.10.1",
   "description": "Strategic news aggregator for 18 major companies - MarketFeed",
   "main": "backend/server.js",
   "scripts": {

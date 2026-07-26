@@ -307,6 +307,74 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(
 .spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-left-color: var(--primary); border-radius: 50%; margin: 0 auto 1rem; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Email Subscription */
+.btn-subscribe { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.btn-subscribe:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-1px); }
+.subscribe-form { padding: 0.5rem 0; }
+.form-group { margin-bottom: 1.25rem; }
+.form-group label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text-main); }
+.form-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; background: var(--bg-body); color: var(--text-main); outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+.form-input:focus { border-color: var(--primary); }
+.frequency-options { display: flex; gap: 0.5rem; }
+.btn-freq { flex: 1; padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.btn-freq:hover { border-color: var(--primary); color: var(--primary); }
+.btn-freq.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.sub-company-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 200px; overflow-y: auto; padding: 0.5rem 0; }
+.sub-company-chip { display: flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 20px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: var(--bg-body); }
+.sub-company-chip img { width: 16px; height: 16px; object-fit: contain; }
+.sub-company-chip:hover { border-color: var(--primary); }
+.sub-company-chip.selected { background: rgba(99,102,241,0.1); border-color: var(--primary); color: var(--primary); }
+.btn-subscribe-submit { width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+.btn-subscribe-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+.btn-subscribe-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.sub-status { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-align: center; }
+.sub-status.success { background: #ecfdf5; color: #059669; }
+.sub-status.error { background: #fef2f2; color: #dc2626; }
+
+/* Nav Tabs */
+.nav-tabs { display: flex; gap: 0.25rem; background: var(--bg-body); border-radius: 10px; padding: 3px; margin-right: 0.75rem; }
+.nav-tab { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border: none; border-radius: 8px; background: transparent; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
+.nav-tab:hover { color: var(--text-main); background: var(--bg-card); }
+.nav-tab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+
+/* IPO Tracker Section */
+.ipo-section { padding: 2rem 0; }
+.ipo-header { margin-bottom: 1.5rem; }
+.ipo-header h2 { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.ipo-subtitle { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem; }
+.ipo-filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
+.ipo-time-filters, .ipo-status-filters { display: flex; gap: 0.4rem; }
+.btn-ipo-time, .btn-ipo-status { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 20px; background: var(--bg-body); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-ipo-time:hover, .btn-ipo-status:hover { border-color: var(--primary); color: var(--primary); }
+.btn-ipo-time.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-ipo-status.active { background: #10b981; color: #fff; border-color: #10b981; }
+
+/* IPO Stats */
+.ipo-stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.ipo-stat-card { background: var(--bg-card); border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--border); }
+.ipo-stat-card .stat-number { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+.ipo-stat-card .stat-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.ipo-stat-card.filed .stat-number { color: #f59e0b; }
+.ipo-stat-card.preparing .stat-number { color: #3b82f6; }
+.ipo-stat-card.rumored .stat-number { color: #8b5cf6; }
+
+/* IPO Cards */
+.ipo-list { display: grid; gap: 1rem; }
+.ipo-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; transition: all 0.2s; }
+.ipo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); border-color: var(--primary); }
+.ipo-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+.ipo-company-info h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
+.ipo-ticker { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-body); padding: 0.15rem 0.5rem; border-radius: 4px; margin-top: 0.2rem; display: inline-block; }
+.ipo-status-badge { padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.status-filed { background: #fef3c7; color: #d97706; }
+.status-preparing { background: #dbeafe; color: #2563eb; }
+.status-rumored { background: #ede9fe; color: #7c3aed; }
+.ipo-description { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 0.75rem; }
+.ipo-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.ipo-meta-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.ipo-meta-item i { color: var(--primary); font-size: 0.7rem; }
+.ipo-countdown { color: #f59e0b; }
+
 /* ==================== RESPONSIVE ==================== */
 
 /* Large tablets and small desktops */
@@ -480,70 +548,3 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(
   .nav-tab { font-size: 0.7rem; padding: 0.4rem 0.5rem; }
 }
 
-/* Email Subscription */
-.btn-subscribe { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
-.btn-subscribe:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-1px); }
-.subscribe-form { padding: 0.5rem 0; }
-.form-group { margin-bottom: 1.25rem; }
-.form-group label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text-main); }
-.form-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; background: var(--bg-body); color: var(--text-main); outline: none; transition: border-color 0.2s; box-sizing: border-box; }
-.form-input:focus { border-color: var(--primary); }
-.frequency-options { display: flex; gap: 0.5rem; }
-.btn-freq { flex: 1; padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
-.btn-freq:hover { border-color: var(--primary); color: var(--primary); }
-.btn-freq.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.sub-company-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 200px; overflow-y: auto; padding: 0.5rem 0; }
-.sub-company-chip { display: flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 20px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.2s; background: var(--bg-body); }
-.sub-company-chip img { width: 16px; height: 16px; object-fit: contain; }
-.sub-company-chip:hover { border-color: var(--primary); }
-.sub-company-chip.selected { background: rgba(99,102,241,0.1); border-color: var(--primary); color: var(--primary); }
-.btn-subscribe-submit { width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
-.btn-subscribe-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
-.btn-subscribe-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-.sub-status { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-align: center; }
-.sub-status.success { background: #ecfdf5; color: #059669; }
-.sub-status.error { background: #fef2f2; color: #dc2626; }
-
-/* Nav Tabs */
-.nav-tabs { display: flex; gap: 0.25rem; background: var(--bg-body); border-radius: 10px; padding: 3px; margin-right: 0.75rem; }
-.nav-tab { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border: none; border-radius: 8px; background: transparent; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
-.nav-tab:hover { color: var(--text-main); background: var(--bg-card); }
-.nav-tab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
-
-/* IPO Tracker Section */
-.ipo-section { padding: 2rem 0; }
-.ipo-header { margin-bottom: 1.5rem; }
-.ipo-header h2 { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin: 0; }
-.ipo-subtitle { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem; }
-.ipo-filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
-.ipo-time-filters, .ipo-status-filters { display: flex; gap: 0.4rem; }
-.btn-ipo-time, .btn-ipo-status { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 20px; background: var(--bg-body); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.btn-ipo-time:hover, .btn-ipo-status:hover { border-color: var(--primary); color: var(--primary); }
-.btn-ipo-time.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.btn-ipo-status.active { background: #10b981; color: #fff; border-color: #10b981; }
-
-/* IPO Stats */
-.ipo-stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-.ipo-stat-card { background: var(--bg-card); border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--border); }
-.ipo-stat-card .stat-number { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
-.ipo-stat-card .stat-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.ipo-stat-card.filed .stat-number { color: #f59e0b; }
-.ipo-stat-card.preparing .stat-number { color: #3b82f6; }
-.ipo-stat-card.rumored .stat-number { color: #8b5cf6; }
-
-/* IPO Cards */
-.ipo-list { display: grid; gap: 1rem; }
-.ipo-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; transition: all 0.2s; }
-.ipo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); border-color: var(--primary); }
-.ipo-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-.ipo-company-info h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
-.ipo-ticker { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-body); padding: 0.15rem 0.5rem; border-radius: 4px; margin-top: 0.2rem; display: inline-block; }
-.ipo-status-badge { padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.status-filed { background: #fef3c7; color: #d97706; }
-.status-preparing { background: #dbeafe; color: #2563eb; }
-.status-rumored { background: #ede9fe; color: #7c3aed; }
-.ipo-description { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 0.75rem; }
-.ipo-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.ipo-meta-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
-.ipo-meta-item i { color: var(--primary); font-size: 0.7rem; }
-.ipo-countdown { color: #f59e0b; }
