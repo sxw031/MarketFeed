@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node -e \"console.log('No build step required')\"",
     "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js"
+    "dev": "nodemon backend/server.js",
+    "test": "node --test \"backend/**/*.test.js\""
   },
   "engines": {
     "node": ">=18.0.0"

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const { generateHeuristicReport } = require('../services/strategyEngine');
 const { generateChatAnswer } = require('../services/aiChatService');
@@ -10,6 +11,19 @@ const { RuntimeCache } = require('../services/runtimeCache');
 const REPORT_CACHE_TTL_MS = 2 * 60 * 1000;
 const reportCache = new RuntimeCache({ maxEntries: 20, defaultTtlMs: REPORT_CACHE_TTL_MS });
 
+// Reports are keyed by period + a content hash (article ids/timestamps), not
+// just the period name, so: (1) daily reports benefit from caching too —
+// re-opening the same day's report with no new news is an instant cache hit
+// — and (2) the cache still auto-invalidates the moment new articles arrive
+// for that period, since the hash changes.
+function hashArticles(articles) {
+  const fingerprint = (articles || [])
+    .map(a => `${a.id || ''}:${a.publishedAt || ''}`)
+    .sort()
+    .join('|');
+  return crypto.createHash('sha1').update(fingerprint).digest('hex');
+}
+
 function createAiRouter({ getNews }) {
   const router = express.Router();
 
@@ -20,12 +34,6 @@ function createAiRouter({ getNews }) {
 
       const isDbBackedPeriod = ['weekly', 'monthly', 'quarterly'].includes(period);
       if (isDbBackedPeriod) {
-        const cacheKey = `report:${period}`;
-        const cached = reportCache.get(cacheKey);
-        if (cached) {
-          return res.json({ success: true, ...cached, cached: true });
-        }
-
         const daysMap = { weekly: 7, monthly: 30, quarterly: 90 };
         const days = daysMap[period] || 1;
         const startDate = new Date();
@@ -33,14 +41,31 @@ function createAiRouter({ getNews }) {
         const dbArticles = await getNews({ startDate: startDate.toISOString(), limit: 500 });
         if (dbArticles && dbArticles.length > 0) articles = dbArticles;
 
+        const cacheKey = `report:${period}:${hashArticles(articles)}`;
+        const cached = reportCache.get(cacheKey);
+        if (cached) {
+          return res.json({ success: true, ...cached, cached: true });
+        }
+
         const report = generateHeuristicReport(articles, period);
         const payload = { report, period, articleCount: articles.length };
         reportCache.set(cacheKey, payload);
         return res.json({ success: true, ...payload });
       }
 
+      // Daily (and any ad-hoc) reports are driven by the article set the
+      // client sends. Cache them too, keyed by that content's hash, so
+      // reopening the daily report with no new news is also an instant hit.
+      const cacheKey = `report:${period}:${hashArticles(articles)}`;
+      const cached = reportCache.get(cacheKey);
+      if (cached) {
+        return res.json({ success: true, ...cached, cached: true });
+      }
+
       const report = generateHeuristicReport(articles, period);
-      res.json({ success: true, report, period, articleCount: articles.length });
+      const payload = { report, period, articleCount: articles.length };
+      reportCache.set(cacheKey, payload);
+      res.json({ success: true, ...payload });
     } catch (error) {
       console.error('[Strategy]', error.message);
       res.status(500).json({ success: false, error: error.message });
