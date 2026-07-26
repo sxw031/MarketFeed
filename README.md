@@ -87,6 +87,9 @@ npm run dev
 
 # Production
 npm start
+
+# Run the test suite
+npm test
 ```
 
 The app will be available at `http://localhost:3000`.

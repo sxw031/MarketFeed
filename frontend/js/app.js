@@ -426,6 +426,17 @@ function showToast(message, type = 'info', duration = 3500) {
 }
 
 // ==================== RENDERING ====================
+// News cards are rendered progressively once a list grows past
+// NEWS_VIRTUALIZE_THRESHOLD (e.g. the full-time-window view once the
+// tracked company count/article volume grows), instead of mounting
+// hundreds of cards to the DOM in one pass. Only an initial batch is
+// rendered; more batches are appended as the user scrolls near the
+// bottom, via an IntersectionObserver watching a sentinel element.
+const NEWS_VIRTUALIZE_THRESHOLD = 60;
+const NEWS_RENDER_BATCH_SIZE = 30;
+let newsRenderObserver = null;
+let newsRenderedCount = 0;
+
 function renderNews() {
   const list = document.getElementById('newsList');
   if (allNews.length === 0) { showEmptyState(true); hidePagination(); return; }
@@ -436,15 +447,58 @@ function renderNews() {
   const startIdx = totalItems === 0 ? 0 : (useFullTimeWindow ? 1 : (((currentPage - 1) * pageSize) + 1));
   const endIdx = totalItems === 0 ? 0 : (useFullTimeWindow ? allNews.length : Math.min(((currentPage - 1) * pageSize) + allNews.length, totalItems));
 
-  list.innerHTML = allNews.map(a => createCard(a)).join('');
-  list.querySelectorAll('.news-card').forEach(card => {
-    card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
-  });
+  if (newsRenderObserver) { newsRenderObserver.disconnect(); newsRenderObserver = null; }
+
+  if (allNews.length > NEWS_VIRTUALIZE_THRESHOLD) {
+    newsRenderedCount = 0;
+    list.innerHTML = '';
+    renderNewsBatch(list);
+  } else {
+    newsRenderedCount = allNews.length;
+    list.innerHTML = allNews.map(a => createCard(a)).join('');
+    bindNewsCardClicks(list);
+  }
 
   if (useFullTimeWindow) hidePagination();
   else renderPagination(totalItems, totalPages, startIdx, endIdx);
   // Scroll to top of news list on page change
   list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function bindNewsCardClicks(container) {
+  container.querySelectorAll('.news-card:not([data-bound])').forEach(card => {
+    card.dataset.bound = '1';
+    card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
+  });
+}
+
+// Renders the next NEWS_RENDER_BATCH_SIZE cards, appends a sentinel used to
+// trigger the following batch, and removes the previous sentinel.
+function renderNewsBatch(list) {
+  const nextBatch = allNews.slice(newsRenderedCount, newsRenderedCount + NEWS_RENDER_BATCH_SIZE);
+  if (nextBatch.length === 0) return;
+
+  const existingSentinel = list.querySelector('.news-list-sentinel');
+  if (existingSentinel) existingSentinel.remove();
+
+  list.insertAdjacentHTML('beforeend', nextBatch.map(a => createCard(a)).join(''));
+  bindNewsCardClicks(list);
+  newsRenderedCount += nextBatch.length;
+
+  if (newsRenderedCount >= allNews.length) return; // fully rendered, no sentinel needed
+
+  const sentinel = document.createElement('div');
+  sentinel.className = 'news-list-sentinel';
+  sentinel.style.gridColumn = '1 / -1';
+  list.appendChild(sentinel);
+
+  newsRenderObserver = new IntersectionObserver((entries) => {
+    if (entries.some(entry => entry.isIntersecting)) {
+      newsRenderObserver.disconnect();
+      renderNewsBatch(list);
+    }
+  }, { rootMargin: '400px' });
+  newsRenderObserver.observe(sentinel);
 }
 
 function renderPagination(totalItems, totalPages, startIdx, endIdx) {
@@ -722,9 +776,12 @@ function setupEventListeners() {
     const categoryFilter = document.getElementById('categoryFilter');
     const sourceFilter = document.getElementById('sourceFilter');
     const searchInput = document.getElementById('searchInput');
+    const companySearchInput = document.getElementById('companySearchInput');
     if (categoryFilter) categoryFilter.value = '';
     if (sourceFilter) sourceFilter.value = '';
     if (searchInput) searchInput.value = '';
+    if (companySearchInput) companySearchInput.value = '';
+    companySearchQuery = '';
     document.querySelectorAll('.btn-quick-time').forEach(b => b.classList.remove('active'));
     const btn24h = document.querySelector('.btn-quick-time[data-range="24h"]');
     if (btn24h) btn24h.classList.add('active');
@@ -757,18 +814,26 @@ function setupEventListeners() {
     setModalOpen(selectorModal, false);
   });
   bindEventById('applySelectorBtn', 'click', () => {
-    selectedCompanies = Array.from(document.querySelectorAll('.company-item.selected')).map(el => el.dataset.company);
     localStorage.setItem(SELECTED_COMPANIES_KEY, JSON.stringify(selectedCompanies));
     setModalOpen(selectorModal, false);
     updateSelectionLabel();
     loadNews(false, { resetPage: true });
   });
   bindEventById('selectAllBtn', 'click', () => {
-    document.querySelectorAll('.company-item').forEach(el => el.classList.add('selected'));
+    document.querySelectorAll('.company-item').forEach(el => {
+      el.classList.add('selected');
+      selectedCompanies = [...new Set([...selectedCompanies, el.dataset.company])];
+    });
   });
   bindEventById('deselectAllBtn', 'click', () => {
+    const visibleNames = new Set(Array.from(document.querySelectorAll('.company-item')).map(el => el.dataset.company));
     document.querySelectorAll('.company-item').forEach(el => el.classList.remove('selected'));
+    selectedCompanies = selectedCompanies.filter(name => !visibleNames.has(name));
   });
+  bindEventById('companySearchInput', 'input', window.MarketFeedApi.debounce(() => {
+    companySearchQuery = document.getElementById('companySearchInput')?.value || '';
+    renderCompanyGrid();
+  }, 200));
 
   // ==================== PODCAST ====================
   const podcastBtn = document.getElementById('podcastBtn');
@@ -1122,19 +1187,28 @@ window.handleLogoError = function(img, name) {
   }
 };
 
+let companySearchQuery = '';
+
 function renderCompanyGrid() {
   const container = document.getElementById('companyFilters');
   if (!container) return;
   container.innerHTML = '';
-  const filtered = activeCategoryFilter === 'all'
-    ? availableCompanies
-    : availableCompanies.filter(c => c.category === activeCategoryFilter);
+  const query = companySearchQuery.trim().toLowerCase();
+  const filtered = availableCompanies
+    .filter(c => activeCategoryFilter === 'all' || c.category === activeCategoryFilter)
+    .filter(c => !query || c.name.toLowerCase().includes(query));
   filtered.forEach(c => {
     const el = document.createElement('div');
     el.className = `company-item ${selectedCompanies.includes(c.name) ? 'selected' : ''}`;
     el.dataset.company = c.name;
     el.innerHTML = `<img src="${getLogoUrl(c.name)}" alt="${c.name}" loading="lazy" onerror="handleLogoError(this,'${c.name}')"><span>${c.name}</span>`;
-    el.addEventListener('click', () => el.classList.toggle('selected'));
+    el.addEventListener('click', () => {
+      el.classList.toggle('selected');
+      const isSelected = el.classList.contains('selected');
+      selectedCompanies = isSelected
+        ? [...new Set([...selectedCompanies, c.name])]
+        : selectedCompanies.filter(name => name !== c.name);
+    });
     container.appendChild(el);
   });
   const countLabel = document.getElementById('companyCountLabel');
