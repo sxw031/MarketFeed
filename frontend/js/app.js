@@ -800,11 +800,7 @@ function setupEventListeners() {
     showToast('Filters cleared.', 'info', 2000);
   });
 
-  // Logo click -> home
-  document.querySelector('.logo')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('resetBtn')?.click();
-  });
+  // Logo is a static brand mark (non-interactive) — no click handler.
 
   // Company selector
   const selectorModal = document.getElementById('companySelectorModal');

@@ -57,7 +57,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(
 /* Navbar */
 .navbar { background: var(--bg-nav); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); height: var(--nav-height); position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; }
 .navbar .nav-container { display: flex; align-items: center; justify-content: space-between; }
-.logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: -0.04em; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex-shrink: 0; }
+.logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: -0.04em; display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; cursor: default; }
 .nav-center { flex: 1; display: flex; justify-content: center; gap: 1rem; }
 .nav-right { display: flex; align-items: center; gap: 0.5rem; }
 
