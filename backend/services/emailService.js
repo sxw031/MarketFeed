@@ -19,6 +19,14 @@ function safeUrl(url) {
   return /^https?:\/\//i.test(trimmed) ? escapeHtml(trimmed) : '#';
 }
 
+// Article publishedAt values originate from third-party RSS feeds and are
+// occasionally missing or malformed; formatting them directly would render
+// the literal string "Invalid Date" in the digest email.
+function formatNewsDate(publishedAt) {
+  const d = new Date(publishedAt);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+}
+
 // Initialize subscription table
 async function initSubscriptionTable() {
   await query.run(`CREATE TABLE IF NOT EXISTS subscriptions (
@@ -242,7 +250,7 @@ function generateEmailHTML({ topNews, strategy, podcastUrl, frequency, unsubscri
       <div class="news-item">
         <h3><a href="${safeUrl(n.url)}">${i + 1}. ${escapeHtml(n.title)}</a></h3>
         <p>${escapeHtml(n.description || '')}</p>
-        <div class="news-meta"><span class="badge">${escapeHtml(n.company)}</span> ${escapeHtml(n.source)} · ${new Date(n.publishedAt).toLocaleDateString()}</div>
+        <div class="news-meta"><span class="badge">${escapeHtml(n.company)}</span> ${escapeHtml(n.source)} · ${formatNewsDate(n.publishedAt)}</div>
       </div>`).join('')}
     </div>
 

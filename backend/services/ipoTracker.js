@@ -41,10 +41,19 @@ async function initIPOTable() {
   }
 }
 
-// Helper: compute an ISO date (YYYY-MM-DD) offset from today by N months
+// Helper: compute an ISO date (YYYY-MM-DD) offset from today by N months.
+// Adding months via setMonth() alone can overflow past the target month when
+// today's day-of-month doesn't exist there (e.g. Jan 31 + 1 month rolls to
+// Mar 2/3 instead of staying in February), silently pushing dates further out
+// than intended. Move to day 1 first so the month rollover itself is safe,
+// then clamp back to the target day (or the target month's last day).
 function monthsFromNow(months) {
   const d = new Date();
+  const originalDay = d.getDate();
+  d.setDate(1);
   d.setMonth(d.getMonth() + months);
+  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(originalDay, daysInTargetMonth));
   return d.toISOString().split('T')[0];
 }
 

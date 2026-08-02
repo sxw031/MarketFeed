@@ -468,7 +468,14 @@ function renderNews() {
 function bindNewsCardClicks(container) {
   container.querySelectorAll('.news-card:not([data-bound])').forEach(card => {
     card.dataset.bound = '1';
-    card.addEventListener('click', () => showArticleModal(JSON.parse(card.dataset.article)));
+    card.addEventListener('click', () => {
+      try {
+        showArticleModal(JSON.parse(card.dataset.article));
+      } catch (e) {
+        console.error('Failed to parse article data:', e);
+        showToast('Unable to open this article.', 'error', 3000);
+      }
+    });
   });
 }
 
@@ -575,10 +582,13 @@ function createCard(article) {
     </div>`;
 }
 
+let articleModalToken = 0;
+
 function showArticleModal(article) {
   const modal = document.getElementById('articleModal');
   const logo = getLogoUrl(article.company);
   const fallbackSummary = article.description || 'No summary available for this article yet.';
+  const token = ++articleModalToken;
   renderArticleModalContent({
     logo,
     article,
@@ -590,7 +600,7 @@ function showArticleModal(article) {
 
   loadArticlePreview(article)
     .then(preview => {
-      if (modal.style.display === 'none') return; // modal closed before preview loaded
+      if (token !== articleModalToken || modal.style.display === 'none') return; // modal closed or replaced before preview loaded
       renderArticleModalContent({
         logo,
         article,
@@ -599,7 +609,7 @@ function showArticleModal(article) {
       });
     })
     .catch(() => {
-      if (modal.style.display === 'none') return;
+      if (token !== articleModalToken || modal.style.display === 'none') return;
       renderArticleModalContent({
         logo,
         article,
@@ -856,6 +866,7 @@ function setupEventListeners() {
       if (contentType.includes('audio')) {
         const blob = await res.blob();
         if (blob.size < 1000) throw new Error('Audio file too small - generation may have failed');
+        if (podcastPlayer.src && podcastPlayer.src.startsWith('blob:')) URL.revokeObjectURL(podcastPlayer.src);
         podcastPlayer.src = URL.createObjectURL(blob);
         await podcastPlayer.play();
         podcastBtn.classList.remove('loading');
@@ -1050,6 +1061,7 @@ function setupEventListeners() {
         const blob = await res.blob();
         let audio = document.getElementById('reportAudioPlayer');
         if (!audio) { audio = document.createElement('audio'); audio.id = 'reportAudioPlayer'; document.body.appendChild(audio); }
+        if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
         audio.src = URL.createObjectURL(blob);
         await audio.play();
         btn.classList.add('playing');
@@ -1077,8 +1089,10 @@ function setupEventListeners() {
     const text = document.getElementById('reportContent').innerText;
     if (!text || text.includes('Generating')) { showToast('Please generate a report first.', 'info'); return; }
     const blob = new Blob([text], { type: 'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `AlphaFeed_Report_${new Date().toISOString().split('T')[0]}.txt`; a.click();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `MarketRadar_Report_${new Date().toISOString().split('T')[0]}.txt`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
   // Yearly Summary Modal close
